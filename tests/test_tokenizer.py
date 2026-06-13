@@ -1,4 +1,4 @@
-"""Stage 2 tests: the tokenizer.
+"""Tokenizer tests.
 
 These tests exercise the tokenizer through its intended interface
 (``expression_engine._tokenizer.tokenize`` plus the ``Token`` / ``TokenType``

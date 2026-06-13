@@ -1,4 +1,4 @@
-"""Stage 12 tests: the public Engine / Expression compilation and evaluation API.
+"""Public Engine and Expression compilation and evaluation API tests.
 
 These tests exercise only the public package surface
 (``from expression_engine import Engine, Expression``) except for the

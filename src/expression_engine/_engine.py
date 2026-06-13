@@ -1,9 +1,9 @@
-"""Stage 12: the public compilation and evaluation API.
+"""The public compilation and evaluation API.
 
 This module wraps the internal tokenizer, parser, and evaluator behind
-:class:`Engine` and :class:`Expression`. Compilation tokenizes and parses once;
-repeated :meth:`Expression.evaluate` calls reuse the stored immutable AST and
-never re-tokenize or re-parse.
+:class:`Engine` and :class:`Expression`. Compilation tokenizes, parses, and
+validates once; repeated :meth:`Expression.evaluate` calls reuse the stored
+immutable representation and never re-tokenize or re-parse.
 """
 
 from __future__ import annotations

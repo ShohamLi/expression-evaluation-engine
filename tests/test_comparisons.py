@@ -17,7 +17,6 @@ from expression_engine import Engine, ExpressionTypeError
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Compile and evaluate ``source`` through the public API."""
     return Engine().compile(source).evaluate(variables)
 
 

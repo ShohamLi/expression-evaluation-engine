@@ -6,8 +6,8 @@ the source-position record (:class:`Position`), and the immutable
 lives in :mod:`expression_engine._tokenizer`.
 
 These types are internal to the engine. They are kept here, separate from the
-tokenizer, so that later stages (parser, validator) can depend on the token
-*shape* without importing the scanning machinery.
+tokenizer, so that the parser and validator can depend on the token *shape*
+without importing the scanning machinery.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ __all__ = ["TokenType", "Position", "Token"]
 class TokenType(Enum):
     """The lexical category of a :class:`Token`.
 
-    Each operator, keyword, and punctuation mark has its own member so a later
+    Each operator, keyword, and punctuation mark has its own member so the
     parser can match on ``token.type`` without re-inspecting the lexeme.
     """
 

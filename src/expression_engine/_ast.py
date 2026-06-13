@@ -1,10 +1,9 @@
-"""Stage 3: the immutable abstract syntax tree (AST) for the expression engine.
+"""The immutable abstract syntax tree (AST) for the expression engine.
 
 This module defines *data only*: the immutable node types produced by the
 parser in :mod:`expression_engine._parser`. The AST is a pure syntactic
 representation of one expression. It carries no evaluation state, performs no
-computation, and does not convert literals to Python runtime values; that work
-belongs to a later (evaluation) stage.
+computation, and leaves literal conversion to the evaluator.
 
 Design notes (consistent with ``docs/decisions.md``):
 
@@ -59,7 +58,7 @@ class LiteralExpr:
             source text for numbers, the *decoded* text for strings, and the
             keyword spelling for ``true``/``false``/``null``/``undefined``. No
             conversion to a Python ``int``/``float``/``bool``/``None``/
-            ``UNDEFINED`` happens at this stage.
+            ``UNDEFINED`` happens during evaluation.
         position: Anchor position of the literal token's first character.
     """
 
@@ -70,7 +69,7 @@ class LiteralExpr:
 
 @dataclass(frozen=True, slots=True)
 class VariableExpr:
-    """A reference to a named external variable.
+    """A reference to a named variable.
 
     Attributes:
         name: The identifier text.
@@ -123,9 +122,9 @@ class ConditionalExpr:
     """A Python-style conditional ``value_if_true if condition else value_if_false``.
 
     Attributes:
-        condition: The expression tested for truthiness.
-        if_true: The value when ``condition`` is true.
-        if_false: The value when ``condition`` is false.
+        condition: The expression whose result must be an exact ``bool`` value.
+        if_true: The value when ``condition`` is ``True``.
+        if_false: The value when ``condition`` is ``False``.
         position: Anchor position of the ``if`` keyword token.
     """
 

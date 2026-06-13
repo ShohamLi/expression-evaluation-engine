@@ -7,19 +7,18 @@ produces a runtime Python value. It implements:
 * external variable lookup;
 * unary numeric ``+`` and ``-``;
 * binary numeric ``+``, ``-``, ``*``, and ``/`` (true division), plus ``+``
-  concatenation of two exact strings (Stage 8);
-* comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5);
+  concatenation of two exact strings;
+* comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=``;
 * strict Boolean ``not``, ``and``, and ``or`` with real short-circuit
-  evaluation (Stage 6);
+  evaluation;
 * conditional ``value_if_true if condition else value_if_false`` with a strict
-  Boolean condition and selected-branch-only evaluation (Stage 7);
+  Boolean condition and selected-branch-only evaluation;
 * local bindings ``let name = value in body`` whose value is evaluated once in
-  the outer scope and whose binding is visible only while evaluating ``body``
-  (Stage 10).
+  the outer scope and whose binding is visible only while evaluating ``body``;
 * built-in mathematical functions and safely registered host functions whose
-  names and arities were resolved during compilation (Stages 13-14).
+  names and arities were resolved during compilation;
 * lexically scoped local functions with compile-time call resolution and
-  per-evaluation closures (Stage 16).
+  per-evaluation closures.
 
 Runtime rules (consistent with ``docs/decisions.md``):
 
@@ -136,8 +135,9 @@ def evaluate(
             ``None`` means that no call nodes are bound.
 
     Returns:
-        The evaluated value: ``int``, ``float``, ``str``, ``bool``, ``None``,
-        or :data:`UNDEFINED`.
+        The evaluated value. Literals and engine operations produce documented
+        engine value types; direct variable and local-function results may also
+        return caller-provided objects unchanged.
 
     Raises:
         ExpressionTypeError: If an operator receives operands of unsupported

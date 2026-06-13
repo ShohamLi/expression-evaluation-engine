@@ -1,4 +1,4 @@
-"""Stage 4 tests: the evaluator (arithmetic and variable lookup).
+"""Evaluator tests for arithmetic and variable lookup.
 
 These tests run end-to-end through the intended pipeline
 ``tokenize -> parse -> evaluate`` (with a small helper) and assert on returned
@@ -6,7 +6,7 @@ runtime values or on the raised engine-specific errors. They cover literals,
 external variables, the missing/null/undefined/false/zero distinctions, unary
 and binary numeric operations, precedence/parentheses, invalid operands,
 division by zero, error positions, left-to-right evaluation, repeated and
-multi-mapping evaluation, input preservation, and operations outside Stage 4.
+multi-mapping evaluation, input preservation, and other language features.
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Evaluate ``source`` through tokenize -> parse -> evaluate."""
     return evaluate(parse(tokenize(source)), variables)
 
 

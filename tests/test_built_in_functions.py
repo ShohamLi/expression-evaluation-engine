@@ -1,4 +1,4 @@
-"""Stage 13 tests: built-in mathematical functions through the public API."""
+"""Built-in mathematical function tests through the public API."""
 
 from __future__ import annotations
 

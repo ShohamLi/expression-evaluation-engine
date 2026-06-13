@@ -1,4 +1,4 @@
-"""Stage 7 tests: conditional expressions ``a if condition else b``.
+"""Conditional expression tests for ``a if condition else b``.
 
 These tests run end-to-end through ``tokenize -> parse -> evaluate`` and assert
 on the returned value or on the raised engine-specific error. They cover branch
@@ -25,7 +25,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Evaluate ``source`` through tokenize -> parse -> evaluate."""
     return evaluate(parse(tokenize(source)), variables)
 
 

@@ -1,4 +1,4 @@
-"""Stage 3: the recursive-descent parser for the expression engine.
+"""The recursive-descent parser for the expression engine.
 
 This module turns the flat token sequence produced by
 :func:`expression_engine._tokenizer.tokenize` into the immutable AST defined in
@@ -164,7 +164,6 @@ class _Parser:
         return LetExpr(name.value, value, body, let_token.position)
 
     def _conditional(self) -> Expr:
-        # value_if_true if condition else value_if_false
         # The else-branch recurses, making the conditional right-associative.
         if_true = self._or()
         if self._current().type is TokenType.IF:
