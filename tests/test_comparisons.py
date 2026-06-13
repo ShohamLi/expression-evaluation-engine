@@ -1,10 +1,10 @@
-"""Stage 5 tests: comparison evaluation (``== != < <= > >=``).
+"""Comparison evaluation tests (``== != < <= > >=``).
 
-These tests run end-to-end through ``tokenize -> parse -> evaluate`` and assert
+These tests run end-to-end through the public compilation API and assert
 on the returned ``bool`` or on the raised engine-specific error. They cover the
-six operators, numeric comparison, string equality (ordered string comparison is
-deferred), the boolean/null/undefined rules, rejection of unsupported operand
-combinations, operator error positions, and input preservation.
+six operators, numeric and string comparison, the boolean/null/undefined rules,
+rejection of unsupported operand combinations, operator error positions, and
+input preservation.
 """
 
 from __future__ import annotations
@@ -13,15 +13,12 @@ from collections.abc import Mapping
 
 import pytest
 
-from expression_engine.errors import ExpressionTypeError
-from expression_engine._evaluator import evaluate
-from expression_engine._parser import parse
-from expression_engine._tokenizer import tokenize
+from expression_engine import Engine, ExpressionTypeError
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Evaluate ``source`` through tokenize -> parse -> evaluate."""
-    return evaluate(parse(tokenize(source)), variables)
+    """Compile and evaluate ``source`` through the public API."""
+    return Engine().compile(source).evaluate(variables)
 
 
 # --------------------------------------------------------------------------- #
@@ -71,7 +68,7 @@ def test_mixed_int_and_float() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Strings: equality and inequality only; ordered comparison is rejected
+# Strings: equality, inequality, and ordered comparison
 # --------------------------------------------------------------------------- #
 
 
@@ -82,10 +79,48 @@ def test_string_equality_and_inequality() -> None:
     assert run('"1" == 1') is False  # no coercion between string and number
 
 
-@pytest.mark.parametrize("source", ['"a" < "b"', '"a" <= "b"', '"a" > "b"', '"a" >= "b"'])
-def test_ordered_string_comparison_is_rejected(source: str) -> None:
-    with pytest.raises(ExpressionTypeError):
-        run(source)
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        ('"a" < "b"', True),
+        ('"a" <= "a"', True),
+        ('"b" > "a"', True),
+        ('"b" >= "b"', True),
+        ('"A" < "a"', True),
+        ('"a" > "A"', True),
+        ('"" < "a"', True),
+        ('"" <= ""', True),
+        ('"é" > "e"', True),
+    ],
+)
+def test_ordered_string_comparison(source: str, expected: bool) -> None:
+    result = run(source)
+    assert result is expected
+    assert type(result) is bool
+
+
+def test_unsupported_caller_values_do_not_invoke_comparison_methods() -> None:
+    calls: list[str] = []
+
+    class StringSubclass(str):
+        def __lt__(self, other: object) -> bool:
+            calls.append("StringSubclass.__lt__")
+            return True
+
+    class ArbitraryObject:
+        def __lt__(self, other: object) -> bool:
+            calls.append("ArbitraryObject.__lt__")
+            return True
+
+    expression = Engine().compile("left < right")
+    for value in (StringSubclass("a"), ArbitraryObject()):
+        with pytest.raises(ExpressionTypeError) as info:
+            expression.evaluate({"left": value, "right": "b"})
+        assert info.value.position is not None
+        assert (info.value.position.line, info.value.position.column) == (1, 6)
+        assert "unsupported operand type" in str(info.value)
+
+    assert calls == []
 
 
 # --------------------------------------------------------------------------- #
@@ -145,7 +180,16 @@ def test_null_and_undefined_versus_other_types_are_unequal() -> None:
 
 @pytest.mark.parametrize(
     "source",
-    ['"a" < 1', '1 > "a"', "null < 1", "undefined > 0", "null >= undefined"],
+    [
+        '"a" < 1',
+        '1 < "a"',
+        '"a" < true',
+        '"a" < null',
+        '"a" < undefined',
+        "null < 1",
+        "undefined > 0",
+        "null >= undefined",
+    ],
 )
 def test_incompatible_type_ordering_is_rejected(source: str) -> None:
     with pytest.raises(ExpressionTypeError):
@@ -177,14 +221,14 @@ def test_error_message_includes_line_and_column() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_repeated_evaluation_of_same_ast_is_stable() -> None:
-    ast = parse(tokenize("a < b"))
-    assert evaluate(ast, {"a": 1, "b": 2}) is True
-    assert evaluate(ast, {"a": 5, "b": 2}) is False
+def test_repeated_evaluation_of_same_compiled_expression_is_stable() -> None:
+    expression = Engine().compile("a < b")
+    assert expression.evaluate({"a": "alpha", "b": "beta"}) is True
+    assert expression.evaluate({"a": "zeta", "b": "beta"}) is False
 
 
 def test_caller_mapping_is_not_mutated() -> None:
-    variables = {"a": 1, "b": 2}
+    variables = {"a": "alpha", "b": "beta"}
     before = dict(variables)
     run("a < b", variables)
     assert variables == before

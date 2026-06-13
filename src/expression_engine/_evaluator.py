@@ -407,9 +407,11 @@ def _eval_comparison(
             equal = False
         return equal if operator is TokenType.EQ else not equal
 
-    # Ordered comparisons (< <= > >=) accept only two numbers. Ordered string
-    # comparison is deferred to a later stage; strings support == and != only.
-    if not (_is_number(left) and _is_number(right)):
+    # Ordered comparisons accept either two exact numbers or two exact strings.
+    if not (
+        (_is_number(left) and _is_number(right))
+        or (type(left) is str and type(right) is str)
+    ):
         raise ExpressionTypeError(
             f"unsupported operand type(s) for {_OPERATOR_SYMBOL[operator]!r}: "
             f"{type(left).__name__} and {type(right).__name__}",
