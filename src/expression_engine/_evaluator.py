@@ -140,16 +140,22 @@ def evaluate(
         return caller-provided objects unchanged.
 
     Raises:
+        TypeError: If ``variables`` is neither a mapping nor ``None``.
         ExpressionTypeError: If an operator receives operands of unsupported
             types (for example a boolean, string, ``null``, or ``undefined``
             operand to arithmetic).
         DivisionByZeroError: If ``/`` is applied with a zero divisor.
-        ExpressionEvaluationError: If a numeric literal cannot be converted. The
-            relevant AST anchor position is attached.
+        ExpressionEvaluationError: If a numeric literal cannot be converted or
+            a division result cannot be represented as a float. The relevant AST
+            anchor position is attached.
     """
 
     if variables is None:
         variables = {}
+    elif not isinstance(variables, Mapping):
+        raise TypeError(
+            f"variables must be a mapping or None, got {type(variables).__name__}"
+        )
     if function_bindings is None:
         function_bindings = EMPTY_FUNCTION_BINDINGS
     return _eval(node, variables, function_bindings, _EMPTY_LOCAL_FUNCTIONS)
@@ -359,7 +365,12 @@ def _eval_binary(
     # SLASH: true division, always returns a float.
     if right == 0:
         raise DivisionByZeroError("division by zero", node.position)
-    return left / right
+    try:
+        return left / right
+    except OverflowError as error:
+        raise ExpressionEvaluationError(
+            "division result cannot be represented as a float", node.position
+        ) from error
 
 
 def _eval_comparison(

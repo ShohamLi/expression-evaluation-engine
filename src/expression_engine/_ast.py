@@ -58,7 +58,8 @@ class LiteralExpr:
             source text for numbers, the *decoded* text for strings, and the
             keyword spelling for ``true``/``false``/``null``/``undefined``. No
             conversion to a Python ``int``/``float``/``bool``/``None``/
-            ``UNDEFINED`` happens during evaluation.
+            ``UNDEFINED`` happens during tokenization, parsing, or AST
+            construction; conversion occurs during evaluation.
         position: Anchor position of the literal token's first character.
     """
 

@@ -9,6 +9,7 @@ compile/evaluate boundary test, which spies on symbols in the private
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
@@ -18,13 +19,28 @@ import expression_engine
 import expression_engine._engine as engine_module
 from expression_engine import (
     UNDEFINED,
+    DivisionByZeroError,
     Engine,
     Expression,
+    ExpressionEvaluationError,
     ExpressionSyntaxError,
     ExpressionTypeError,
-    DivisionByZeroError,
     UnknownFunctionError,
 )
+
+
+class ReadOnlyVariables(Mapping[str, object]):
+    def __init__(self, values: dict[str, object]) -> None:
+        self._values = values
+
+    def __getitem__(self, key: str) -> object:
+        return self._values[key]
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 def test_engine_and_expression_are_importable() -> None:
@@ -71,6 +87,27 @@ def test_evaluate_with_omitted_variables_uses_empty_mapping() -> None:
     assert expression.evaluate() is UNDEFINED
 
 
+def test_evaluate_accepts_custom_read_only_mapping() -> None:
+    variables = ReadOnlyVariables({"x": 4})
+    assert Engine().compile("x + 1").evaluate(variables) == 5
+
+
+@pytest.mark.parametrize(
+    "variables",
+    [[], (), "", 1, object()],
+    ids=["list", "tuple", "string", "integer", "object"],
+)
+def test_evaluate_rejects_non_mapping_variables(variables: object) -> None:
+    before = list(variables) if isinstance(variables, list) else None
+    expression = Engine().compile("x")
+
+    with pytest.raises(TypeError, match=r"^variables must be a mapping or None"):
+        expression.evaluate(variables)  # type: ignore[arg-type]
+
+    if before is not None:
+        assert variables == before
+
+
 def test_caller_mapping_is_not_mutated() -> None:
     variables = {"x": 10}
     before = dict(variables)
@@ -87,6 +124,26 @@ def test_division_by_zero_is_raised_during_evaluate() -> None:
     expression = Engine().compile("1 / 0")
     with pytest.raises(DivisionByZeroError):
         expression.evaluate()
+
+
+def test_huge_integer_division_is_normalized_with_position_and_cause() -> None:
+    expression = Engine().compile("x / y")
+
+    with pytest.raises(ExpressionEvaluationError) as info:
+        expression.evaluate({"x": 10**400, "y": 1})
+
+    assert type(info.value) is ExpressionEvaluationError
+    assert info.value.position is not None
+    assert (info.value.position.line, info.value.position.column) == (1, 3)
+    assert isinstance(info.value.__cause__, OverflowError)
+
+
+def test_supported_division_behavior_is_unchanged() -> None:
+    expression = Engine().compile("x / y")
+
+    assert expression.evaluate({"x": 6, "y": 2}) == 3.0
+    assert expression.evaluate({"x": 7.5, "y": 2.5}) == 3.0
+    assert expression.evaluate({"x": 10**300, "y": 10**299}) == 10.0
 
 
 def test_type_error_is_raised_during_evaluate() -> None:
