@@ -354,6 +354,26 @@ dependency, or public API surface is added.
   the comparison operator's position.
 - **Chaining:** chained comparisons remain rejected by the parser (unchanged).
 
+## Boolean operators (Stage 6)
+
+This stage adds evaluation for `not`, `and`, and `or` inside the existing
+evaluator. Conditional expressions, string operations, functions, and local
+variables remain out of scope; no new module, error class, or public API is
+added.
+
+- **Strict Boolean operands:** operands must be the exact built-in `bool` type;
+  there is no implicit truthiness. Numbers, strings, `null`, `undefined`, and
+  missing variables are never converted to a Boolean and raise
+  `ExpressionTypeError` at the operator position when evaluated as an operand.
+- **Exact results:** `not`, `and`, and `or` return an exact Python `bool`.
+- **Left-to-right, real short-circuit:** the left operand is evaluated first and
+  exactly once. `and` returns `False` immediately when the left operand is
+  `False`; `or` returns `True` immediately when the left operand is `True`. The
+  right operand (and its validation) is skipped entirely when short-circuited,
+  so errors inside a skipped operand never occur; when the right operand is
+  required, its evaluation errors propagate normally.
+- **null / undefined:** never converted to `False`.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and

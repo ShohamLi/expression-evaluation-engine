@@ -360,7 +360,7 @@ def test_unary_type_error_position_is_operator() -> None:
 
 def test_unsupported_operation_position() -> None:
     with pytest.raises(ExpressionEvaluationError) as info:
-        run("a and b")
+        run("a if b else c")
     assert info.value.position is not None
     assert (info.value.position.line, info.value.position.column) == (1, 3)
 
@@ -406,20 +406,6 @@ def test_operands_evaluated_left_to_right() -> None:
     assert variables.lookups == ["a", "b", "c"]
 
 
-def test_unsupported_operation_does_not_evaluate_operands() -> None:
-    variables = RecordingMapping({"a": 1, "b": 2})
-    with pytest.raises(ExpressionEvaluationError):
-        run("a and b", variables)
-    assert variables.lookups == []
-
-
-def test_unsupported_unary_not_does_not_evaluate_operand() -> None:
-    variables = RecordingMapping({"a": 1})
-    with pytest.raises(ExpressionEvaluationError):
-        run("not a", variables)
-    assert variables.lookups == []
-
-
 def test_conditional_is_unsupported_and_skips_operands() -> None:
     variables = RecordingMapping({"a": 1, "b": 2, "c": 3})
     with pytest.raises(ExpressionEvaluationError):
@@ -435,9 +421,6 @@ def test_conditional_is_unsupported_and_skips_operands() -> None:
 @pytest.mark.parametrize(
     "source",
     [
-        "not true",
-        "true and false",
-        "true or false",
         "1 if true else 2",
     ],
 )
@@ -449,7 +432,7 @@ def test_unsupported_operations_raise_evaluation_error(source: str) -> None:
 def test_unsupported_operation_is_not_type_error() -> None:
     # Unsupported ops are base evaluation errors, not type errors.
     with pytest.raises(ExpressionEvaluationError) as info:
-        run("true and false")
+        run("1 if true else 2")
     assert not isinstance(info.value, ExpressionTypeError)
 
 
