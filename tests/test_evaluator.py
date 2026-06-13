@@ -265,7 +265,6 @@ def test_nested_parentheses() -> None:
     [
         "true + 1",  # bool is not numeric
         "1 + false",
-        '"a" + "b"',  # string operations are out of scope in Stage 4
         '"a" + 1',
         "null + 1",
         "1 + null",
