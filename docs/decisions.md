@@ -456,6 +456,47 @@ compilation cache, top-level compile alias, validation pass, or function support
 is added in this stage. Later stages may add private immutable function-related
 state without changing this public workflow.
 
+## Built-in and registered functions (Stages 13–14)
+
+Project-owner decisions for these stages:
+
+- The only registration API is ``Engine(functions=...)``. ``Engine()`` remains
+  valid, and the supplied mapping is copied once without being mutated or kept
+  by reference. Built-in names are reserved.
+- The exact built-in set is ``abs``, ``min``, ``max``, ``round``, ``floor``,
+  ``ceil``, ``sqrt``, ``pow``, and natural-log ``log``. Numeric inputs are exact
+  built-in ``int``/``float`` values, never ``bool`` or subclasses. ``floor`` and
+  ``ceil`` return ``int``; ``sqrt`` and ``log`` return ``float``; non-negative
+  integer ``pow`` returns ``int`` and every other supported ``pow`` returns
+  ``float``. ``round`` uses Python half-to-even behavior, and ``min``/``max``
+  require at least two numeric arguments.
+- Function names and positional arity are checked during ``Engine.compile`` in
+  every AST branch, including branches that runtime short-circuiting will skip.
+  Unknown names raise ``UnknownFunctionError`` and wrong arity raises
+  ``FunctionArityError``. Free variable names remain valid.
+- Registered callables may have positional-only or positional-or-keyword
+  parameters plus trailing defaults. ``*args``, keyword-only parameters,
+  ``**kwargs``, and uninspectable signatures are rejected at engine
+  construction. Evaluation passes only evaluated positional arguments.
+- Registered return values are restricted to exact ``int``, ``float``, ``str``,
+  ``bool``, ``None``, and the exported ``UNDEFINED`` singleton. An existing
+  ``ExpressionError`` propagates; every other normal callable exception is
+  wrapped in a positioned ``ExpressionEvaluationError`` with its cause kept.
+- Compiled expressions and registry metadata are immutable and safe to share
+  between evaluations. A caller-provided function can still contain mutable or
+  non-thread-safe behavior; the library does not make that callable thread-safe.
+
+AI implementation suggestion adopted by the project owner: keep the work in one
+focused ``_functions.py`` module. The engine stores an immutable registry
+snapshot, and compilation creates an immutable mapping from each ``CallExpr``
+to resolved function metadata. Evaluation therefore performs no name lookup,
+signature inspection, tokenization, or parsing.
+
+Alternatives explicitly rejected by the project owner: global registration,
+dynamic attribute access such as ``getattr(math, name)``, runtime signature
+inspection, arbitrary Python execution, and local-function resolution in these
+stages.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and

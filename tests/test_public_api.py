@@ -20,10 +20,10 @@ from expression_engine import (
     UNDEFINED,
     Engine,
     Expression,
-    ExpressionEvaluationError,
     ExpressionSyntaxError,
     ExpressionTypeError,
     DivisionByZeroError,
+    UnknownFunctionError,
 )
 
 
@@ -133,7 +133,6 @@ def test_concurrent_evaluation_with_independent_mappings() -> None:
     assert results == [i + 1 for i in range(8)]
 
 
-def test_valid_function_call_compiles_but_evaluates_unsupported() -> None:
-    expression = Engine().compile("f(1)")
-    with pytest.raises(ExpressionEvaluationError):
-        expression.evaluate()
+def test_unknown_function_call_fails_during_compile() -> None:
+    with pytest.raises(UnknownFunctionError):
+        Engine().compile("f(1)")
