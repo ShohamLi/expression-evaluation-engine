@@ -43,8 +43,11 @@ the chosen behavior and, where relevant, what was deliberately excluded.
 - Out of scope for v1: interpolation, f-strings, raw strings, multiline strings.
 - `+` concatenates only when both operands are strings; there is no implicit
   stringification (`"value: " + 1` is a type error).
-- String ordering is case-sensitive lexicographic by Unicode code point. Locale-
-  aware ordering is out of scope for v1.
+- The ordered comparison operators (`<`, `<=`, `>`, `>=`) accept two exact
+  built-in strings. Ordering is case-sensitive and lexicographic by Unicode code
+  point, matching Python's built-in string ordering.
+- Locale-aware ordering, Unicode normalization, case folding, natural sorting,
+  coercion, and caller-provided `str` subclasses are out of scope for v1.
 
 ## Null and undefined
 
@@ -62,7 +65,9 @@ the chosen behavior and, where relevant, what was deliberately excluded.
 - Neither null nor undefined is ever silently converted to `0`.
 - Arithmetic and ordering involving null or undefined raise a clear type or
   evaluation error, unless a specific built-in explicitly accepts them.
-- Inspection helpers planned: `is_defined(value)`, `is_null(value)`.
+- `is_defined(value)` and `is_null(value)` are not part of v1; they remain
+  possible future extensions. Null and undefined are already handled throughout
+  evaluation without these helper functions.
 - There is a single documented behavior; no strict/lenient modes in v1.
 
 ## Variables and scope
@@ -327,14 +332,15 @@ dependency, or public API surface is added.
   values are never mutated.
 - **Numbers:** the exact built-in types `int` and `float` are mutually
   comparable (`1 == 1.0`, `1 < 1.5`, `2.0 >= 2`). Booleans are **not** numbers.
-  Ordered comparisons (`<`, `<=`, `>`, `>=`) accept only `int`/`float` operands.
+  Ordered numeric comparisons accept only `int`/`float` pairs.
 - **Booleans:** equality is defined only within `bool` (`true == true`); a
   boolean is never equal to a number (`true == 1` is `false`, with no coercion).
   Ordered comparison involving a boolean is an `ExpressionTypeError`.
 - **Strings:** the exact built-in `str` type supports equality and inequality
-  (`"a" == "a"`, `"a" != "b"`). Ordered string comparison (`<`, `<=`, `>`, `>=`)
-  is deferred to a later stage and raises `ExpressionTypeError`. There is no
-  coercion between strings and numbers.
+  (`"a" == "a"`, `"a" != "b"`) and ordered comparison (`<`, `<=`, `>`, `>=`).
+  Ordering is case-sensitive and lexicographic by Unicode code point, with no
+  locale awareness, normalization, case folding, natural sorting, or coercion.
+  Mixed string/non-string ordering is an `ExpressionTypeError`.
 - **Equality across categories:** equality never coerces between categories.
   Numbers, strings, booleans, `null`, and `undefined` each compare only within
   their own category; any cross-category pair is unequal rather than an error.
