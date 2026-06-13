@@ -2,7 +2,7 @@
 
 ## Approach
 
-I first read the assignment and divided it into small stages. I implemented one main feature at a time, using a separate branch for each stage.
+I first read the assignment and divided it into small changes. I implemented one main feature at a time, using a separate branch for each change.
 
 Before each change, I checked the existing code and tests, defined the expected behavior, and listed the important edge cases. I tried to keep every change small and consistent with the code that was already implemented.
 
@@ -14,7 +14,7 @@ I decided the architecture, public API, syntax, type rules, error behavior, and 
 
 I used Cursor to help with implementation and Codex to review changes. AI suggested code, tests, and edge cases, but I reviewed the output myself. I changed, simplified, or rejected suggestions that did not fit the project.
 
-I only merged a stage after checking the code and running the tests. The final decisions and responsibility for the implementation were mine.
+I only merged a change after checking the code and running the tests. The final decisions and responsibility for the implementation were mine.
 
 ## Vague requirements
 

@@ -1,8 +1,8 @@
 # Design Decisions
 
-This document records the design decisions for the expression engine as they are
-made. It is a working log, not the final assignment write-up. Each decision notes
-the chosen behavior and, where relevant, what was deliberately excluded.
+This document records the design decisions for the expression engine. Each
+decision notes the chosen behavior and, where relevant, what was deliberately
+excluded.
 
 ## Language syntax
 
@@ -52,9 +52,8 @@ the chosen behavior and, where relevant, what was deliberately excluded.
 ## Null and undefined
 
 - Two distinct concepts:
-  - **null**: a value that is explicitly present but empty. Represented to
-    callers by Python `None`. Internally it may later be normalized to a private
-    immutable null sentinel so it stays distinct from undefined.
+  - **null**: a value that is explicitly present but empty. It is represented to
+    callers by Python `None` and remains distinct from undefined.
   - **undefined**: a missing or unavailable value. Represented by the exported
     `UNDEFINED` singleton, which is never Python `None` internally.
 - `{"x": None}` (x exists and is null) must remain distinguishable from `{}`
@@ -125,7 +124,7 @@ the chosen behavior and, where relevant, what was deliberately excluded.
   an immutable compiled representation for repeated evaluations.
 - The hot evaluation path does not tokenize, parse, or rebuild the tree.
 - No compilation cache is implemented in v1; a bounded, thread-safe cache is a
-  possible later stage once correctness and benchmarks justify it.
+  possible future extension if correctness and benchmarks justify it.
 - The standard-library benchmark is run with
   `PYTHONPATH=src python benchmarks/benchmark_engine.py`. It measures compilation
   and evaluation separately, warms up each workload, records multiple samples,
@@ -134,16 +133,14 @@ the chosen behavior and, where relevant, what was deliberately excluded.
   engine construction, compilation, function registration, and registered-callable
   signature inspection are outside their timed regions.
 - Benchmark results are machine-, interpreter-, and load-specific measurements,
-  not universal performance guarantees. Stage 19 adds no cache or production
-  optimization.
+  not universal performance guarantees. No cache or production optimization is
+  included.
 
-## Parser and AST (Stage 3)
+## Parser and AST
 
-This stage adds a parser and an immutable AST only. No evaluation, `Engine`,
-compiled `Expression`, functions, or `let` parsing is included. The AST is a
-syntactic representation; it is **not** a compiled expression and does not
-implement parse-once compilation. A later stage may wrap it in an immutable
-compiled-expression object and reuse it across evaluations.
+The parser produces an immutable syntactic AST. The public compilation API
+combines that AST with immutable validation metadata and reuses it across
+evaluations.
 
 ### Grammar and parser strategy
 
@@ -189,8 +186,8 @@ parentheses.
 ### AST design and immutability
 
 - Node types: `LiteralExpr`, `VariableExpr`, `UnaryExpr`, `BinaryExpr`,
-  `ConditionalExpr`, and `LetExpr` (added in Stage 9), with `Expr` as their
-  union. No base class or visitor.
+  `ConditionalExpr`, `LetExpr`, `LocalFunctionExpr`, and `CallExpr`, with `Expr`
+  as their union. No base class or visitor.
 - All nodes are `@dataclass(frozen=True, slots=True)`: immutable after
   construction, no per-instance `__dict__`, and structural equality.
 - Nodes reuse existing lexical types instead of duplicating them: operator and
@@ -199,7 +196,7 @@ parentheses.
 - `LiteralExpr.value` stores the tokenizer-provided `Token.value` verbatim as a
   `str` (decoded text for strings, source text for numbers, keyword spelling for
   `true`/`false`/`null`/`undefined`). No conversion to `int`/`float`/`bool`/
-  `None`/`UNDEFINED` happens in this stage, consistent with the tokenizer's
+  `None`/`UNDEFINED` happens during evaluation, consistent with the tokenizer's
   documented deferral of numeric conversion.
 
 ### Source-position policy (anchor only)
@@ -212,7 +209,7 @@ parentheses.
 - This is explicitly an anchor policy. A single position cannot reconstruct a
   complete start/end span, especially because redundant parentheses are dropped,
   string tokens hold decoded (not raw) text, and no end offsets are stored. No
-  source-span object is introduced in this stage.
+  source-span object is introduced.
 
 ### Parentheses
 
@@ -240,13 +237,11 @@ parentheses.
   the relevant source position. Empty input has no dedicated message; it yields
   the standard "expected an expression but reached end of input".
 
-## Evaluator: arithmetic and variables (Stage 4)
+## Evaluator
 
-This stage adds a single evaluator module (`_evaluator.py`) that walks the
-immutable AST and returns a runtime value. It implements only arithmetic and
-external variable lookup; comparisons, `not`/`and`/`or`, conditionals, string
-operations, null/undefined propagation, `let`, and functions are out of scope.
-No `Engine`, compiled `Expression`, cache, or benchmark is added.
+The evaluator module (`_evaluator.py`) walks the immutable AST and returns a
+runtime value. It handles literals, variables, operators, conditionals, local
+bindings, and resolved function calls without storing shared evaluation state.
 
 ### Interface
 
@@ -260,13 +255,12 @@ No `Engine`, compiled `Expression`, cache, or benchmark is added.
 
 - integer literal → `int`; float literal → `float`; string literal → its decoded
   `str`; `true`/`false` → `bool`; `null` → `None`; `undefined` → the existing
-  `UNDEFINED` singleton. Conversion (previously deferred from the tokenizer) now
-  happens here.
+  `UNDEFINED` singleton. Conversion happens in the evaluator.
 
 ### Variable lookup and the missing-variable rule
 
 - A name absent from the mapping evaluates to `UNDEFINED` (`variables.get(name,
-  UNDEFINED)`), consistent with the previously approved "missing variable
+  UNDEFINED)`), consistent with the "missing variable
   evaluates to `UNDEFINED`" decision. A stored `UNDEFINED` value evaluates to the
   same singleton: a missing variable and an explicit `undefined` have different
   origins but the same approved runtime result. Neither is converted to `None`,
@@ -281,10 +275,9 @@ No `Engine`, compiled `Expression`, cache, or benchmark is added.
   (booleans-are-not-numbers, already documented). `isinstance` is deliberately
   not used, so caller-defined `int`/`float` subclasses are rejected and no
   overloaded arithmetic on caller objects is invoked. `Decimal`, `Fraction`,
-  NumPy values, and other custom numeric types are unsupported in this stage.
-- Strings are never converted to numbers. String `+` concatenation (eventually
-  documented for two strings) is **not** implemented in Stage 4 and currently
-  raises `ExpressionTypeError`; it will arrive with string operations later.
+  NumPy values, and other custom numeric types are unsupported.
+- Strings are never converted to numbers. `+` concatenates only two exact
+  strings; mixed string and non-string operands raise `ExpressionTypeError`.
 
 ### Arithmetic semantics
 
@@ -295,14 +288,6 @@ No `Engine`, compiled `Expression`, cache, or benchmark is added.
 - Binary operands are evaluated left-to-right, then operand types are validated,
   then the result is computed (so a zero check happens only after both operands
   are confirmed numeric).
-
-### Operations outside Stage 4
-
-- `not`, the six comparisons, `and`, `or`, and conditional expressions raise the
-  base `ExpressionEvaluationError` with the node's anchor position and **do not
-  evaluate their operands** (no partial evaluation or side effects). No
-  `UnsupportedOperationError` class is introduced, since those operators are
-  planned for later stages.
 
 ### Errors and positions
 
@@ -323,17 +308,14 @@ No `Engine`, compiled `Expression`, cache, or benchmark is added.
 ### Current limitation
 
 - A syntactically valid but extremely large float literal (e.g. `1e400`)
-  converts via Python's `float()` to a non-finite value (`inf`); Stage 4 accepts
-  that normal Python result rather than adding finite-number validation.
+  converts via Python's `float()` to a non-finite value (`inf`); the evaluator
+  accepts that normal Python result rather than adding finite-number validation.
 
-## Comparisons (Stage 5)
+## Comparisons
 
-This stage adds evaluation for the six comparison operators (`==`, `!=`, `<`,
-`<=`, `>`, `>=`) to the existing evaluator. Boolean operators (`and`, `or`,
-`not`), conditional expressions, string concatenation, functions, and local
-variables remain out of scope. The comparison logic lives inside `_evaluator.py`
-(a small `_eval_comparison` reached from `_eval_binary`); no new module, runtime
-dependency, or public API surface is added.
+The evaluator supports the six comparison operators (`==`, `!=`, `<`, `<=`,
+`>`, `>=`). The comparison logic lives inside `_evaluator.py` in
+`_eval_comparison`, reached from `_eval_binary`.
 
 - **Result type:** comparisons always return an exact Python `bool`.
 - **Evaluation:** the left operand is evaluated before the right, and each
@@ -370,12 +352,10 @@ dependency, or public API surface is added.
   the comparison operator's position.
 - **Chaining:** chained comparisons remain rejected by the parser (unchanged).
 
-## Boolean operators (Stage 6)
+## Boolean operators
 
-This stage adds evaluation for `not`, `and`, and `or` inside the existing
-evaluator. Conditional expressions, string operations, functions, and local
-variables remain out of scope; no new module, error class, or public API is
-added.
+The evaluator handles `not`, `and`, and `or` with strict Boolean operands and
+short-circuit behavior.
 
 - **Strict Boolean operands:** operands must be the exact built-in `bool` type;
   there is no implicit truthiness. Numbers, strings, `null`, `undefined`, and
@@ -390,11 +370,9 @@ added.
   required, its evaluation errors propagate normally.
 - **null / undefined:** never converted to `False`.
 
-## Conditional expressions (Stage 7)
+## Conditional expressions
 
-This stage adds evaluation for `value_if_true if condition else value_if_false`
-inside the existing evaluator. No new module, error class, or public API is
-added.
+The evaluator handles `value_if_true if condition else value_if_false`.
 
 - **Strict Boolean condition:** the condition must be the exact built-in `bool`
   type; there is no implicit truthiness. Numbers, strings, `null`, `undefined`,
@@ -407,14 +385,14 @@ added.
 - **Result returned unchanged:** the selected branch's value (any supported
   type, including `null` and `undefined`) is returned without coercion.
 
-## String concatenation (Stage 8)
+## String concatenation
 
 - `+` concatenates two exact built-in `str` operands and returns an exact `str`.
 - There is no implicit string conversion.
 - Mixed string and non-string operands raise `ExpressionTypeError`.
 - All other string operations remain unsupported.
 
-## Local bindings: syntax and AST (Stage 9)
+## Local bindings: syntax and AST
 
 - Local binding syntax is `let name = value in body`.
 - `let` has the lowest precedence; a `let` used as an operand must be
@@ -422,10 +400,8 @@ added.
 - `LetExpr` is immutable (`frozen=True, slots=True`) and anchored at the `let`
   token; `value` and `body` are full expressions, so nested `let` and
   conditionals are allowed in both.
-- This stage adds syntax and AST only; evaluation and runtime scope are deferred
-  to Stage 10.
 
-## Local bindings: evaluation (Stage 10)
+## Local bindings: evaluation
 
 Runtime evaluation for `LetExpr` is one direct branch in `_eval`. `value` is
 evaluated first, exactly once, in the outer scope; `body` is then evaluated in a
@@ -440,7 +416,7 @@ never copied or mutated, and all scope state is local to one `_eval` call, so th
 immutable AST holds no shared evaluation state and stays safe for repeated and
 concurrent evaluation.
 
-## Function calls: syntax and AST (Stage 11)
+## Function calls: syntax and AST
 
 - Call syntax is `name(arg0, arg1, ...)`. Only an identifier may be called:
   parenthesized or arbitrary expressions are not callable (`(f)(1)`, `1(2)`),
@@ -454,26 +430,21 @@ concurrent evaluation.
   argument forms. Zero-argument calls are allowed; trailing commas are rejected.
 - `CallExpr` is immutable (`frozen=True, slots=True`); `arguments` is a
   `tuple[Expr, ...]` (never a mutable list) and `position` is anchored at the
-  function identifier. This stage adds syntax and AST only; evaluation stays out
-  of scope, so a `CallExpr` reaching the evaluator hits the existing
-  unsupported-node error.
+  function identifier.
 
-## Public compilation API (Stage 12)
+## Public compilation API
 
-This stage adds the public compile-once / evaluate-many API approved in Phase 1.
-:meth:`Engine.compile` tokenizes and parses source text once into an immutable
-:class:`Expression` that stores a private ``_ast`` field (``field(repr=False)``);
-:meth:`Expression.evaluate` calls the existing evaluator only and never
-re-tokenizes or re-parses. ``Engine`` is stateless; evaluation keeps all
-variable state local to each call, so the same compiled expression is safe for
-repeated and concurrent evaluation and caller mappings are never mutated. No
-compilation cache, top-level compile alias, validation pass, or function support
-is added in this stage. Later stages may add private immutable function-related
-state without changing this public workflow.
+The public API follows a compile-once / evaluate-many workflow.
+:meth:`Engine.compile` tokenizes, parses, and validates source text once into an
+immutable :class:`Expression`. :meth:`Expression.evaluate` calls the evaluator
+without re-tokenizing, re-parsing, or revalidating. ``Engine`` is stateless;
+evaluation keeps all variable state local to each call, so the same compiled
+expression is safe for repeated and concurrent evaluation and caller mappings
+are never mutated. No compilation cache or top-level compile alias is included.
 
-## Built-in and registered functions (Stages 13–14)
+## Built-in and registered functions
 
-Project-owner decisions for these stages:
+Project-owner decisions:
 
 - The only registration API is ``Engine(functions=...)``. ``Engine()`` remains
   valid, and the supplied mapping is copied once without being mutated or kept
@@ -509,10 +480,9 @@ signature inspection, tokenization, or parsing.
 
 Alternatives explicitly rejected by the project owner: global registration,
 dynamic attribute access such as ``getattr(math, name)``, runtime signature
-inspection, arbitrary Python execution, and local-function resolution in these
-stages.
+inspection, and arbitrary Python execution.
 
-## Local functions: syntax and immutable AST (Stage 15)
+## Local functions: syntax and immutable AST
 
 - Local function definition syntax is exactly
   `let name(param1, param2) = function_body in body`, including zero-parameter
@@ -523,15 +493,11 @@ stages.
 - Local function definitions share `let`'s lowest precedence. The function body
   and outer body are full expressions, and the node's source position is
   anchored at the `let` keyword.
-- Stage 15 is syntax and AST only. Duplicate names, built-in-name reservation,
-  registered-function shadowing, recursion, local-call resolution and arity,
-  lexical scope, and evaluation are deferred to Stage 16.
-- The project owner selected the local-function syntax and approved keeping
-  Stage 15 limited to parsing and immutable AST representation. AI assistance
-  suggested the `LocalFunctionExpr` name, field layout, implementation approach,
-  and focused test cases.
+- The project owner selected the local-function syntax and immutable AST
+  representation. AI assistance suggested the `LocalFunctionExpr` name, field
+  layout, implementation approach, and focused test cases.
 
-## Local functions: validation and evaluation (Stage 16)
+## Local functions: validation and evaluation
 
 - Local functions use lexical, definition-site variable scope. Parameters are
   exact positional bindings layered over captured variables, duplicate parameter
@@ -554,13 +520,13 @@ stages.
 - Known limitations remain intentional: no recursion, anonymous or higher-order
   functions, default or variadic parameters, keyword arguments, memoization, or
   runtime function-name lookup.
-- Project-owner decisions: the Stage 15 syntax, lexical scope, exact positional
+- Project-owner decisions: the local-function syntax, lexical scope, exact positional
   parameters, no recursion in v1, reserved built-in names, and allowing local
   functions to shadow registered functions. AI assistance suggested the
   compile-time binding details, per-evaluation closure representation, and
   edge-case tests.
 
-## Function validation and error normalization (Stage 17)
+## Function validation and error normalization
 
 - A complete audit confirmed that compile-time call validation already visits
   every AST branch, call argument, local-function body, and nested local-function
@@ -594,12 +560,10 @@ stages.
   (`expression-evaluation-engine` / `expression_engine`), using
   `setuptools.build_meta`, deferring any compilation cache, and representing
   public null as Python `None` rather than a public `NULL` object.
-- This log is maintained so the final one-page write-up can distinguish owner
-  decisions from AI suggestions. The final write-up is not authored until the
-  implementation decisions are stable.
-- Stage 3 (parser and AST): the owner directly required the recursive-descent
+- This record distinguishes project-owner decisions from AI suggestions.
+- Parser and AST: the owner directly required the recursive-descent
   strategy, the precedence/associativity table, rejecting chained comparisons,
-  the five-node AST, frozen `slots=True` dataclasses, the anchor-position policy
+  the AST node set, frozen `slots=True` dataclasses, the anchor-position policy
   (and the correction that anchors are not full spans), parentheses as grouping
   only, deferring literal conversion, the conditional `ParserError` (only if
   justified), keeping it out of the package root, and boundary validation of

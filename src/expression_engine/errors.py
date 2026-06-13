@@ -1,7 +1,7 @@
 """Exception hierarchy for the expression engine.
 
-The hierarchy is intentionally small and stable so that later stages (lexer,
-parser, validator, evaluator) and library consumers can catch errors at the
+The hierarchy is intentionally small and stable so that the lexer, parser,
+validator, evaluator, and library consumers can catch errors at the
 granularity they need:
 
     ExpressionError                     base for everything raised by this library
@@ -20,7 +20,6 @@ known once an expression has been parsed, so ``UnknownFunctionError`` and
 ``FunctionArityError`` are classified as validation errors rather than runtime
 errors. This classification is part of the library's documented contract.
 
-No behavior beyond construction is attached to these classes in this stage.
 """
 
 from __future__ import annotations

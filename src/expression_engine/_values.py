@@ -10,9 +10,8 @@ distinct concept from explicit *null*:
 Keeping these distinct lets the engine tell ``{"x": None}`` (``x`` exists and is
 null) apart from ``{}`` (``x`` is absent and resolves to ``UNDEFINED``).
 
-This stage defines only identity and representation for ``UNDEFINED``. Arithmetic,
-comparison, and truthiness semantics are intentionally not implemented yet; they
-will be added (and tested) alongside the evaluator in a later stage.
+The evaluator never coerces ``UNDEFINED`` to zero or a Boolean. Arithmetic and
+ordering reject it, while equality keeps it distinct from explicit null.
 """
 
 from __future__ import annotations

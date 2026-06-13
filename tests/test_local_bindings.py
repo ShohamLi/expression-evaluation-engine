@@ -1,4 +1,4 @@
-"""Stage 10 tests: runtime evaluation of ``let name = value in body``.
+"""Runtime evaluation tests for ``let name = value in body``.
 
 These tests drive the real public pipeline ``tokenize -> parse -> evaluate``
 (via the ``run`` helper) and assert on returned runtime values or on the raised
@@ -25,7 +25,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Evaluate ``source`` through tokenize -> parse -> evaluate."""
     return evaluate(parse(tokenize(source)), variables)
 
 

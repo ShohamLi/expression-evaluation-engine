@@ -1,8 +1,4 @@
-"""Stage 1 tests: package import, the UNDEFINED singleton, and the error hierarchy.
-
-These tests exercise only what Stage 1 actually implements. They intentionally
-do not assume any expression-language behavior.
-"""
+"""Package import, UNDEFINED singleton, and public error hierarchy tests."""
 
 from __future__ import annotations
 

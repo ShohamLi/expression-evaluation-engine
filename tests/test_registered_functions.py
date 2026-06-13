@@ -1,4 +1,4 @@
-"""Stage 14 tests: registered host functions through the public API."""
+"""Registered host function tests through the public API."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Stage 15 tests for local-function definition syntax and immutable AST."""
+"""Local-function definition syntax and immutable AST tests."""
 
 from __future__ import annotations
 

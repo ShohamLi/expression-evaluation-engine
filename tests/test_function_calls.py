@@ -1,9 +1,9 @@
-"""Stage 11 tests: parsing and AST for function calls ``name(arg, ...)``.
+"""Parser and AST tests for function calls ``name(arg, ...)``.
 
 These tests exercise the parser through ``tokenize -> parse`` and assert on the
 immutable :class:`~expression_engine._ast.CallExpr` structure (or on the raised
-``ParserError``). They cover only the new call syntax; no ``CallExpr`` is
-evaluated (function evaluation is out of scope for this stage).
+``ParserError``). They cover call syntax; function evaluation is tested
+separately.
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def parse_source(source: str) -> Expr:
-    """Tokenize ``source`` and parse it into an expression AST."""
     return parse(tokenize(source))
 
 

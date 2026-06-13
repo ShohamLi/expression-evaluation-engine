@@ -1,4 +1,4 @@
-"""Stage 8 tests: minimal string concatenation with the ``+`` operator.
+"""String concatenation tests for the ``+`` operator.
 
 These tests run end-to-end through ``tokenize -> parse -> evaluate`` and assert
 on the returned ``str`` or on the raised engine-specific error. They cover
@@ -20,7 +20,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def run(source: str, variables: Mapping[str, object] | None = None) -> object:
-    """Evaluate ``source`` through tokenize -> parse -> evaluate."""
     return evaluate(parse(tokenize(source)), variables)
 
 

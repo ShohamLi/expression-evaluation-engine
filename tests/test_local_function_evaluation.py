@@ -1,4 +1,4 @@
-"""Stage 16 tests for local-function validation, scope, and evaluation."""
+"""Local-function validation, scope, and evaluation tests."""
 
 from __future__ import annotations
 

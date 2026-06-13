@@ -1,26 +1,24 @@
-"""Stage 2: the tokenizer (lexer) for the expression engine.
+"""The tokenizer (lexer) for the expression engine.
 
 This module turns expression source text into a flat sequence of immutable
 :class:`~expression_engine._tokens.Token` objects (defined in
 :mod:`expression_engine._tokens`). It performs *only* lexical analysis: it
 recognizes the literals, identifiers, keywords, operators, and punctuation of
 the language described in ``docs/decisions.md`` and records a source position
-for every token. Parsing, an AST, evaluation, functions, and the public
-``Engine`` / ``Expression`` API are intentionally **not** part of this stage.
+for every token.
 
 The intended interface is the module-level :func:`tokenize` function, which
 returns the token objects defined in :mod:`expression_engine._tokens`. Lexical
 problems are reported by raising
 :class:`~expression_engine.errors.LexerError` with the offending source
-position attached, so a later parser or a library consumer can locate the
-error.
+position attached so the parser and library consumers can locate the error.
 
 Design notes (smallest reasonable semantics, consistent with the decision log):
 
 * Integer literals produce :attr:`~._tokens.TokenType.INTEGER`; literals with a
   fraction or an exponent produce :attr:`~._tokens.TokenType.FLOAT`. Conversion
-  of the lexeme to a Python ``int`` / ``float`` is deliberately deferred to a
-  later stage; a number token stores its exact source lexeme as its value.
+  of the lexeme to a Python ``int`` / ``float`` is deliberately deferred to the
+  evaluator; a number token stores its exact source lexeme as its value.
 * A decimal point requires digits on both sides (``0.5`` is valid; ``.5`` and
   ``5.`` are malformed). Scientific notation (``1e3``, ``2.5e-4``, ``1E6``) is
   supported and always yields a float.
@@ -163,7 +161,7 @@ class _Tokenizer:
         if self._current() == ".":
             if _is_digit(self._peek(1)):
                 is_float = True
-                self._advance()  # consume '.'
+                self._advance()
                 self._consume_digits()
             else:
                 raise self._error(
@@ -174,7 +172,7 @@ class _Tokenizer:
         # Optional exponent; scientific notation always yields a float.
         if self._current() in ("e", "E"):
             is_float = True
-            self._advance()  # consume 'e' / 'E'
+            self._advance()
             if self._current() in ("+", "-"):
                 self._advance()
             if not _is_digit(self._current()):
@@ -205,7 +203,7 @@ class _Tokenizer:
     def _read_string(self, start: Position) -> Token:
         src = self._src
         quote = src[self._pos]
-        self._advance()  # consume opening quote
+        self._advance()
         parts: list[str] = []
 
         while True:
@@ -215,7 +213,7 @@ class _Tokenizer:
             char = src[self._pos]
 
             if char == quote:
-                self._advance()  # consume closing quote
+                self._advance()
                 break
 
             if char == "\n":
@@ -225,7 +223,7 @@ class _Tokenizer:
 
             if char == "\\":
                 escape_at = self._mark()
-                self._advance()  # consume backslash
+                self._advance()
                 if self._pos >= self._len:
                     raise self._error("unterminated string literal", start)
                 escaped = src[self._pos]

@@ -20,7 +20,7 @@ stores conversations locally, the locally available export will be included.
 
 ## Notes
 
-- No transcripts are copied or fabricated at this stage; this file only documents
+- No transcripts are copied or fabricated here; this file only documents
   the intended location and process.
 - The structured record of design decisions (owner vs. AI) is kept in
   [`../docs/decisions.md`](../docs/decisions.md) and will be cross-referenced when

@@ -1,9 +1,9 @@
-"""Stage 9 tests: parsing and AST for ``let name = value in body``.
+"""Parser and AST tests for ``let name = value in body``.
 
 These tests exercise the parser through ``tokenize -> parse`` and assert on the
 immutable :class:`~expression_engine._ast.LetExpr` structure (or on the raised
-``ParserError``). They cover only the new local-binding syntax; broad parser
-coverage lives in ``tests/test_parser.py``. No ``LetExpr`` is evaluated.
+``ParserError``). They cover local-binding syntax; broad parser coverage and
+evaluation are tested separately.
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ from expression_engine._tokenizer import tokenize
 
 
 def parse_source(source: str) -> Expr:
-    """Tokenize ``source`` and parse it into an expression AST."""
     return parse(tokenize(source))
 
 

@@ -1,4 +1,4 @@
-"""Stage 3 tests: the recursive-descent parser.
+"""Recursive-descent parser tests.
 
 These tests exercise the parser through its intended interface
 (``expression_engine._parser.parse`` consuming ``expression_engine._tokenizer.
@@ -31,7 +31,6 @@ from expression_engine._tokens import Position, Token, TokenType
 
 
 def parse_source(source: str) -> Expr:
-    """Tokenize ``source`` and parse it into an expression AST."""
     return parse(tokenize(source))
 
 
