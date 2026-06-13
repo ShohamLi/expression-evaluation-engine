@@ -6,7 +6,8 @@ granularity they need:
 
     ExpressionError                     base for everything raised by this library
     ├── ExpressionSyntaxError           lexing/parsing problems (compile time)
-    │   └── LexerError                  tokenization failure carrying a source position
+    │   ├── LexerError                  tokenization failure carrying a source position
+    │   └── ParserError                 parsing failure carrying a source position
     ├── ExpressionValidationError       static checks after a successful parse
     │   ├── UnknownFunctionError        call to a name that resolves to no function
     │   └── FunctionArityError          call with the wrong number of arguments
@@ -33,6 +34,7 @@ __all__ = [
     "ExpressionError",
     "ExpressionSyntaxError",
     "LexerError",
+    "ParserError",
     "ExpressionValidationError",
     "ExpressionEvaluationError",
     "ExpressionTypeError",
@@ -57,6 +59,23 @@ class LexerError(ExpressionSyntaxError):
     unterminated strings. The offending source :class:`~._tokens.Position` is
     kept on the ``position`` attribute and folded into the message so callers
     can locate the problem.
+    """
+
+    def __init__(self, message: str, position: "Position") -> None:
+        self.position = position
+        super().__init__(
+            f"{message} at line {position.line}, column {position.column}"
+        )
+
+
+class ParserError(ExpressionSyntaxError):
+    """Raised when a token sequence cannot be parsed into an expression.
+
+    Covers unexpected tokens, missing operands, unbalanced parentheses,
+    incomplete conditional expressions, chained comparisons, and trailing
+    tokens after a complete expression. Mirrors :class:`LexerError`: the
+    offending :class:`~._tokens.Position` is kept on ``position`` and folded
+    into the message so callers can locate the problem.
     """
 
     def __init__(self, message: str, position: "Position") -> None:

@@ -123,6 +123,108 @@ the chosen behavior and, where relevant, what was deliberately excluded.
   possible later stage once correctness and benchmarks justify it.
 - No throughput numbers are claimed without a reproducible benchmark.
 
+## Parser and AST (Stage 3)
+
+This stage adds a parser and an immutable AST only. No evaluation, `Engine`,
+compiled `Expression`, functions, or `let` parsing is included. The AST is a
+syntactic representation; it is **not** a compiled expression and does not
+implement parse-once compilation. A later stage may wrap it in an immutable
+compiled-expression object and reuse it across evaluations.
+
+### Grammar and parser strategy
+
+- A conventional hand-written **recursive-descent** parser, with one small
+  method per precedence level. No Pratt parser, parser generator, table-driven
+  parser, combinators, or dispatch registry is used.
+- Left-associative binary levels are written as iterative loops; recursion is
+  used only where it is the natural grammar shape: nested parentheses, repeated
+  unary operators, and the right-associative conditional.
+- The parser consumes the tokenizer's token sequence (`parse(tokens)`) and does
+  not inspect raw source, re-tokenize, or mutate tokens. All mutable state (a
+  token reference and an integer cursor) is local to a single-use parser
+  instance; no global state and nothing is retained between calls.
+- Interface: `parse(tokens: Sequence[Token]) -> Expr` is **internal** and is not
+  exported from the package root.
+
+### Precedence and associativity
+
+From lowest binding to highest (one method per level):
+
+1. conditional `value_if_true if condition else value_if_false` — right-assoc;
+2. boolean `or` — left-assoc;
+3. boolean `and` — left-assoc;
+4. comparisons `== != < <= > >=` — non-chaining (at most one);
+5. additive `+ -` — left-assoc;
+6. multiplicative `* /` — left-assoc;
+7. unary `not + -` — binds to the following expression; repeatable;
+8. primary — literals, variables, and `( … )` grouping.
+
+`10 - 3 - 2` parses as `(10 - 3) - 2`; `a if b else c if d else e` parses as
+`a if b else (c if d else e)`. The `if`-condition and the true-value are parsed
+at the `or` level, so a bare conditional in those positions requires
+parentheses.
+
+### Chained comparisons
+
+- Chained comparisons such as `a < b < c` are **rejected** with a `ParserError`,
+  consistent with the existing "comparisons are non-chaining" decision under
+  *Language syntax*. The parser accepts at most one comparison operator and
+  raises if a second immediately follows. `1 + + 2` is not a chaining/repeat
+  case: it parses as `1 + (+2)` (a unary plus), which is intended.
+
+### AST design and immutability
+
+- Five node types: `LiteralExpr`, `VariableExpr`, `UnaryExpr`, `BinaryExpr`,
+  `ConditionalExpr`, with `Expr` as their union. No base class or visitor.
+- All nodes are `@dataclass(frozen=True, slots=True)`: immutable after
+  construction, no per-instance `__dict__`, and structural equality.
+- Nodes reuse existing lexical types instead of duplicating them: operator and
+  literal *kinds* are recorded as `TokenType`, and source locations are
+  `Position` (from `_tokens`).
+- `LiteralExpr.value` stores the tokenizer-provided `Token.value` verbatim as a
+  `str` (decoded text for strings, source text for numbers, keyword spelling for
+  `true`/`false`/`null`/`undefined`). No conversion to `int`/`float`/`bool`/
+  `None`/`UNDEFINED` happens in this stage, consistent with the tokenizer's
+  documented deferral of numeric conversion.
+
+### Source-position policy (anchor only)
+
+- Each node stores exactly one **anchor** `Position`, not a full source span:
+  - literals and variables: the token's start position;
+  - unary nodes: the operator position;
+  - binary nodes: the operator position;
+  - conditional nodes: the `if` keyword position.
+- This is explicitly an anchor policy. A single position cannot reconstruct a
+  complete start/end span, especially because redundant parentheses are dropped,
+  string tokens hold decoded (not raw) text, and no end offsets are stored. No
+  source-span object is introduced in this stage.
+
+### Parentheses
+
+- Parentheses only affect grouping and produce **no** AST node. Redundant
+  parentheses are not preserved: `(((1)))` parses to the same node as `1`.
+
+### Error handling
+
+- A small `ParserError(ExpressionSyntaxError)` is added. It mirrors `LexerError`:
+  it stores the offending `Position` on `position` and folds line/column into the
+  message. `ExpressionSyntaxError` alone was insufficient because it carries no
+  position attribute or constructor, would force ad-hoc message formatting at
+  each raise site, and would make parse failures indistinguishable from lexer
+  failures.
+- `ParserError` is added to `expression_engine.errors.__all__`, consistently with
+  how `LexerError` is exposed there. This is an additive extension of the
+  errors-module surface; it is **not** added to the package-root
+  `expression_engine.__init__` API, which is unchanged.
+- Malformed parser input is validated once at the `parse()` boundary: the token
+  sequence must be non-empty and terminated by an `EOF` token, otherwise a
+  `ParserError` is raised. Because an `EOF` sentinel is then guaranteed and the
+  parser never advances past it, internal token access cannot raise
+  `IndexError`. No re-tokenizing or synthetic lexical layer is introduced.
+- Parser errors identify what was expected, what was found (or end-of-input), and
+  the relevant source position. Empty input has no dedicated message; it yields
+  the standard "expected an expression but reached end of input".
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
@@ -136,3 +238,16 @@ the chosen behavior and, where relevant, what was deliberately excluded.
 - This log is maintained so the final one-page write-up can distinguish owner
   decisions from AI suggestions. The final write-up is not authored until the
   implementation decisions are stable.
+- Stage 3 (parser and AST): the owner directly required the recursive-descent
+  strategy, the precedence/associativity table, rejecting chained comparisons,
+  the five-node AST, frozen `slots=True` dataclasses, the anchor-position policy
+  (and the correction that anchors are not full spans), parentheses as grouping
+  only, deferring literal conversion, the conditional `ParserError` (only if
+  justified), keeping it out of the package root, and boundary validation of
+  malformed token input. The AI proposed the concrete grammar wording, the reuse
+  of `TokenType`/`Position` on nodes, naming the literal field `value` to match
+  `Token.value`, and the specific error messages; the owner approved these.
+  Parsing `+ - * /`, parentheses, variables, booleans, `and`/`or`, the ternary
+  conditional, and strings is required directly by the assignment; the comparison
+  operator set, precedence details, and non-chaining behavior are
+  repository-specific decisions since the assignment leaves them unspecified.
