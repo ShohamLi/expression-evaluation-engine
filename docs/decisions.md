@@ -225,6 +225,92 @@ parentheses.
   the relevant source position. Empty input has no dedicated message; it yields
   the standard "expected an expression but reached end of input".
 
+## Evaluator: arithmetic and variables (Stage 4)
+
+This stage adds a single evaluator module (`_evaluator.py`) that walks the
+immutable AST and returns a runtime value. It implements only arithmetic and
+external variable lookup; comparisons, `not`/`and`/`or`, conditionals, string
+operations, null/undefined propagation, `let`, and functions are out of scope.
+No `Engine`, compiled `Expression`, cache, or benchmark is added.
+
+### Interface
+
+- `evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> object`
+  is **internal** (not exported from the package root), mirroring `tokenize` and
+  `parse`. `None` means an empty variable mapping. The evaluator never
+  re-tokenizes or re-parses, holds no global state, and never mutates the AST,
+  the caller's mapping, or the caller's values.
+
+### Runtime literal values
+
+- integer literal → `int`; float literal → `float`; string literal → its decoded
+  `str`; `true`/`false` → `bool`; `null` → `None`; `undefined` → the existing
+  `UNDEFINED` singleton. Conversion (previously deferred from the tokenizer) now
+  happens here.
+
+### Variable lookup and the missing-variable rule
+
+- A name absent from the mapping evaluates to `UNDEFINED` (`variables.get(name,
+  UNDEFINED)`), consistent with the previously approved "missing variable
+  evaluates to `UNDEFINED`" decision. A stored `UNDEFINED` value evaluates to the
+  same singleton: a missing variable and an explicit `undefined` have different
+  origins but the same approved runtime result. Neither is converted to `None`,
+  `False`, or `0`. `null`/`None`, `False`, numeric zero, and `UNDEFINED` remain
+  distinct values (note that Python still treats `False == 0` as true; the
+  guarantee is about distinct objects and types, not `==`).
+
+### Numeric type rule
+
+- Arithmetic accepts only the **exact** built-in numeric types: a value is
+  numeric iff `type(value) in (int, float)`. `bool` is therefore not numeric
+  (booleans-are-not-numbers, already documented). `isinstance` is deliberately
+  not used, so caller-defined `int`/`float` subclasses are rejected and no
+  overloaded arithmetic on caller objects is invoked. `Decimal`, `Fraction`,
+  NumPy values, and other custom numeric types are unsupported in this stage.
+- Strings are never converted to numbers. String `+` concatenation (eventually
+  documented for two strings) is **not** implemented in Stage 4 and currently
+  raises `ExpressionTypeError`; it will arrive with string operations later.
+
+### Arithmetic semantics
+
+- Unary `+`/`-` and binary `+`/`-`/`*` follow normal Python numeric promotion
+  (any `float` operand yields a `float`); integer-only arithmetic stays `int`.
+- `/` always performs true division and returns a `float`; a zero divisor
+  (`0` or `0.0`) raises `DivisionByZeroError`.
+- Binary operands are evaluated left-to-right, then operand types are validated,
+  then the result is computed (so a zero check happens only after both operands
+  are confirmed numeric).
+
+### Operations outside Stage 4
+
+- `not`, the six comparisons, `and`, `or`, and conditional expressions raise the
+  base `ExpressionEvaluationError` with the node's anchor position and **do not
+  evaluate their operands** (no partial evaluation or side effects). No
+  `UnsupportedOperationError` class is introduced, since those operators are
+  planned for later stages.
+
+### Errors and positions
+
+- `ExpressionEvaluationError` gained a backward-compatible constructor: `message`
+  is required and `position` is optional. Message-only construction still works;
+  when a position is supplied it is stored on `.position` and folded into the
+  message (matching `LexerError`/`ParserError`). `ExpressionTypeError` and
+  `DivisionByZeroError` inherit this. The package root `expression_engine.__all__`
+  is unchanged.
+- The evaluator always supplies the relevant AST anchor: the operator position
+  for unary, binary, division-by-zero, and unsupported-operation errors, and the
+  literal position for literal-conversion errors.
+- Numeric literal conversion catches only `ValueError`/`OverflowError` from
+  `int()`/`float()` on tokenizer-produced text and reports them as an
+  `ExpressionEvaluationError` at the literal position; no broad exception
+  handling and no custom numeric parsing.
+
+### Current limitation
+
+- A syntactically valid but extremely large float literal (e.g. `1e400`)
+  converts via Python's `float()` to a non-finite value (`inf`); Stage 4 accepts
+  that normal Python result rather than adding finite-number validation.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
