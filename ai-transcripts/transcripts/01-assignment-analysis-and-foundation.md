@@ -1565,7 +1565,7 @@ git status
 
 - **Editable install**: `Successfully built expression-evaluation-engine` and `Successfully installed expression-evaluation-engine-0.0.0 ... pytest-9.0.3`. One non-fatal notice: pip 24.0 → upgrade available (informational only).
 - **pytest**: `9 passed in 0.04s` (Python 3.11.13, pytest 9.0.3, configfile `pyproject.toml`, testpaths `tests`).
-- **import**: `[LOCAL_HOME]/Desktop/expression-evaluation-engine/src/expression_engine/__init__.py`.
+- **import**: `[PROJECT_ROOT]/src/expression_engine/__init__.py`.
 - **`git diff --check`**: clean, exit 0 (no whitespace errors).
 - **`git status`**: working tree has only the new untracked files (`README.md`, `ai-transcripts/`, `docs/`, `pyproject.toml`, `src/`, `tests/`); nothing staged or committed.
 - Linter check on `src/` and `tests/`: no errors.
@@ -1678,7 +1678,7 @@ git status
 ```
 
 - **pytest**: `9 passed in 0.04s` (Python 3.11.13, pytest 9.0.3, configfile `pyproject.toml`, testpaths `tests`).
-- **import**: `[LOCAL_HOME]/Desktop/expression-evaluation-engine/src/expression_engine/__init__.py`.
+- **import**: `[PROJECT_ROOT]/src/expression_engine/__init__.py`.
 - **`git diff --check`**: clean, exit 0.
 - **`git status`**: untracked-only on `main` (`README.md`, `ai-transcripts/`, `docs/`, `pyproject.toml`, `src/`, `tests/`); nothing staged or committed.
 

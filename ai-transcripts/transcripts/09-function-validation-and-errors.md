@@ -13,7 +13,7 @@
 > User context
 >
 > Attachments:
-> -Backend Home Assignment — Expression Evaluation Engine.pdf: `[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf`
+> -Backend Home Assignment — Expression Evaluation Engine.pdf
 > - Implement Stage 17 only: complete and normalize function validation and engine-…: `[LOCAL_HOME]/.codex/attachments/a0ca5ade-397a-4fb1-adf9-a10b99009b09/pasted-text.txt`
 
 <details><summary>20 previous messages</summary>
@@ -22,7 +22,7 @@
 >
 > <details><summary>Explored a file, a list, ran 2 commands</summary>
 >
-> - Ran `pdftotext '[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf' -`
+> - Ran `pdftotext 'Backend Home Assignment — Expression Evaluation Engine.pdf' -`
 >
 > <details><summary>Explored a file</summary>
 >
@@ -100,7 +100,7 @@
 >
 > </details>
 >
-> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c "from pypdf import PdfReader; r=PdfReader("[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf"); print('PAGES', len(r.pages)); [print(f'\n===== PAGE {i+1} =====\n'+(p.extract_text() or '')) for i,p in enumerate(r.pages)]"`
+> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c "from pypdf import PdfReader; r=PdfReader("Backend Home Assignment — Expression Evaluation Engine.pdf"); print('PAGES', len(r.pages)); [print(f'\n===== PAGE {i+1} =====\n'+(p.extract_text() or '')) for i,p in enumerate(r.pages)]"`
 >
 > <details><summary>Explored a file</summary>
 >
@@ -117,7 +117,7 @@
 >
 > </details>
 >
-> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c "from pypdf import PdfReader; r=PdfReader(r'''[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf'''); print('PAGES', len(r.pages)); [print(f'\n===== PAGE {i+1} =====\n'+(p.extract_text() or '')) for i,p in enumerate(r.pages)]"`
+> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c "from pypdf import PdfReader; r=PdfReader(r'''Backend Home Assignment — Expression Evaluation Engine.pdf'''); print('PAGES', len(r.pages)); [print(f'\n===== PAGE {i+1} =====\n'+(p.extract_text() or '')) for i,p in enumerate(r.pages)]"`
 >
 > <details><summary>Explored 11 files</summary>
 >

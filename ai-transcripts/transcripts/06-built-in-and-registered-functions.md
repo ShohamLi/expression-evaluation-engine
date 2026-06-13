@@ -21,9 +21,11 @@
 >
 > I’ve got the stage requirements. I’m now locating the assignment PDF and auditing the existing call pipeline, API, tests, decisions, and repository state; I’ll give the requested inspection report before touching code.
 >
-> The working tree already contains uncommitted Stage 13/14-shaped changes, including the proposed `_functions.py` and new tests. I’m treating them as existing user work: I’ll inspect and preserve what is sound, identify gaps against the full assignment and requested contract, then make only necessary edits. The PDF is not in the repository or the cited attachment folder, so I’m broadening the local search before any modification.
+> The working tree already contains uncommitted Stage 13/14-shaped changes, including the proposed `_functions.py` and new tests. I’m treating them as existing user work: I’ll inspect and preserve what is sound, identify gaps against the full assignment and requested contract, then make only necessary edits.
 >
-> The PDF still isn’t present anywhere under Desktop, Downloads, Documents, or the attachment store; the attachment manifest may point to its original source, so I’m checking that next. Meanwhile, the existing implementation has the right overall shape, but I’m auditing details such as mapping validation, signature edge cases, numeric overflow/domain behavior, immutability, and compile-time traversal before deciding what needs correction.
+> [REDACTED FOR PRIVACY]
+>
+> Meanwhile, the existing implementation has the right overall shape, but I’m auditing details such as mapping validation, signature edge cases, numeric overflow/domain behavior, immutability, and compile-time traversal before deciding what needs correction.
 >
 > <details><summary>Searched the web</summary>
 >

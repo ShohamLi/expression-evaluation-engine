@@ -13,7 +13,7 @@
 > User context
 >
 > Attachments:
-> -Backend Home Assignment — Expression Evaluation Engine.pdf: `[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf`
+> -Backend Home Assignment — Expression Evaluation Engine.pdf
 > - Implement Stage 15 only: local-function definition syntax and immutable AST. Wo…: `[LOCAL_HOME]/.codex/attachments/658bca7b-075c-47a3-892e-f6f01a1c600d/pasted-text.txt`
 
 <details><summary>19 previous messages</summary>
@@ -30,7 +30,7 @@
 >
 > - Ran `git status --short`
 >
-> - Ran `pdftotext '[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf' -`
+> - Ran `pdftotext 'Backend Home Assignment — Expression Evaluation Engine.pdf' -`
 >
 > <details><summary>Explored a list</summary>
 >
@@ -82,9 +82,9 @@
 >
 > </details>
 >
-> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c 'from pypdf import PdfReader; p=PdfReader("[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf"); print("\n".join(f"\n=== PAGE {i} ===\n{page.extract_text()}" for i,page in enumerate(p.pages,1)))'`
+> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c 'from pypdf import PdfReader; p=PdfReader("Backend Home Assignment — Expression Evaluation Engine.pdf"); print("\n".join(f"\n=== PAGE {i} ===\n{page.extract_text()}" for i,page in enumerate(p.pages,1)))'`
 >
-> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdfinfo '[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf'`
+> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdfinfo 'Backend Home Assignment — Expression Evaluation Engine.pdf'`
 >
 > </details>
 >
@@ -461,7 +461,7 @@ Context noted:
 >
 > </details>
 >
-> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c 'from pypdf import PdfReader; p=PdfReader("[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf"); print("\n".join(f"\n=== PAGE {i} ===\n{page.extract_text()}" for i,page in enumerate(p.pages,1)))'`
+> - Ran `[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -c 'from pypdf import PdfReader; p=PdfReader("Backend Home Assignment — Expression Evaluation Engine.pdf"); print("\n".join(f"\n=== PAGE {i} ===\n{page.extract_text()}" for i,page in enumerate(p.pages,1)))'`
 >
 > <details><summary>Explored 8 files</summary>
 >
