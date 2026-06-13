@@ -1,14 +1,14 @@
 """expression_engine: a reusable expression-evaluation library.
 
-This package is under development. Only the values and exceptions exported here
-are implemented at this stage: the ``UNDEFINED`` sentinel and the exception
-hierarchy rooted at ``ExpressionError``. Expression compilation and evaluation
-(the ``Engine`` and ``Expression`` types) are not implemented yet and are
-deliberately not exported until they have real, tested behavior.
+This package provides :class:`Engine` and :class:`Expression` for compiling
+expression source text once and evaluating it repeatedly against variable
+mappings, plus the ``UNDEFINED`` sentinel and the exception hierarchy rooted at
+:class:`ExpressionError`.
 """
 
 from __future__ import annotations
 
+from ._engine import Engine, Expression
 from ._values import UNDEFINED
 from .errors import (
     DivisionByZeroError,
@@ -24,6 +24,8 @@ from .errors import (
 __version__ = "0.0.0"
 
 __all__ = [
+    "Engine",
+    "Expression",
     "UNDEFINED",
     "ExpressionError",
     "ExpressionSyntaxError",

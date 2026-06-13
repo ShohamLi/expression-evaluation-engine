@@ -443,6 +443,19 @@ concurrent evaluation.
   of scope, so a `CallExpr` reaching the evaluator hits the existing
   unsupported-node error.
 
+## Public compilation API (Stage 12)
+
+This stage adds the public compile-once / evaluate-many API approved in Phase 1.
+:meth:`Engine.compile` tokenizes and parses source text once into an immutable
+:class:`Expression` that stores a private ``_ast`` field (``field(repr=False)``);
+:meth:`Expression.evaluate` calls the existing evaluator only and never
+re-tokenizes or re-parses. ``Engine`` is stateless; evaluation keeps all
+variable state local to each call, so the same compiled expression is safe for
+repeated and concurrent evaluation and caller mappings are never mutated. No
+compilation cache, top-level compile alias, validation pass, or function support
+is added in this stage. Later stages may add private immutable function-related
+state without changing this public workflow.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
