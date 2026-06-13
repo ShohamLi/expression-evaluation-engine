@@ -13,7 +13,7 @@
 > User context
 >
 > Attachments:
-> -Backend Home Assignment — Expression Evaluation Engine.pdf: `[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf`
+> -Backend Home Assignment — Expression Evaluation Engine.pdf
 > - Perform a focused final-hardening audit and, only where justified by the existi…: `[LOCAL_HOME]/.codex/attachments/059c6a98-e776-4bd7-9f03-88d1b410f767/pasted-text.txt`
 
 <details><summary>19 previous messages</summary>
@@ -30,7 +30,7 @@
 >
 > - Ran `git status --short --branch`
 >
-> - Ran `pdftotext '[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf' -`
+> - Ran `pdftotext 'Backend Home Assignment — Expression Evaluation Engine.pdf' -`
 >
 > <details><summary>Explored a list</summary>
 >
@@ -52,7 +52,7 @@
 >
 > - Ran `'[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3' -c "import pypdf; print(pypdf.__version__)"`
 >
-> - Ran `'[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3' -c "from pypdf import PdfReader; p=PdfReader('[LOCAL_HOME]/Downloads/Backend Home Assignment — Expression Evaluation Engine.pdf'); print('PAGES', len(p.pages)); [print(f'\n--- PAGE {i} ---\n'+(x.extract_text() or '')) for i,x in enumerate(p.pages,1)]"`
+> - Ran `'[LOCAL_HOME]/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3' -c "from pypdf import PdfReader; p=PdfReader('Backend Home Assignment — Expression Evaluation Engine.pdf'); print('PAGES', len(p.pages)); [print(f'\n--- PAGE {i} ---\n'+(x.extract_text() or '')) for i,x in enumerate(p.pages,1)]"`
 >
 > </details>
 >

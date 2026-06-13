@@ -104,9 +104,10 @@ excluded.
     invalid domains raise a stable engine error.
   - `round(x)` and `round(x, ndigits)`: `x` numeric non-boolean, `ndigits`
     integer non-boolean; documented half-to-even rounding.
-  - `min` / `max`: two or more positional arguments (no iterables in v1);
-    arguments must be mutually comparable; fewer than two arguments is an
-    arity error.
+  - `min` / `max`: two or more exact built-in numeric arguments (`int` or
+    `float`, excluding `bool`; no iterables in v1). Arbitrary mutually
+    comparable values and strings are not accepted; fewer than two arguments
+    is an arity error.
 - Unknown functions, argument counts, argument types, returned values, and
   exceptions raised by user functions are validated/wrapped into engine errors.
 
@@ -196,8 +197,8 @@ parentheses.
 - `LiteralExpr.value` stores the tokenizer-provided `Token.value` verbatim as a
   `str` (decoded text for strings, source text for numbers, keyword spelling for
   `true`/`false`/`null`/`undefined`). No conversion to `int`/`float`/`bool`/
-  `None`/`UNDEFINED` happens during evaluation, consistent with the tokenizer's
-  documented deferral of numeric conversion.
+  `None`/`UNDEFINED` happens during tokenization, parsing, or AST construction.
+  Conversion to runtime values occurs during evaluation.
 
 ### Source-position policy (anchor only)
 
@@ -245,7 +246,8 @@ bindings, and resolved function calls without storing shared evaluation state.
 
 ### Interface
 
-- `evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> object`
+- `evaluate(node: Expr, variables: Mapping[str, object] | None = None,
+  function_bindings: FunctionBindings | None = None) -> object`
   is **internal** (not exported from the package root), mirroring `tokenize` and
   `parse`. `None` means an empty variable mapping. The evaluator never
   re-tokenizes or re-parses, holds no global state, and never mutates the AST,

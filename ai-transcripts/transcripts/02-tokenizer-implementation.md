@@ -67,13 +67,7 @@ Let me read the existing source files, tests, and decisions doc.
 
 Now let me find the assignment PDF and check the git log / branch state.
 
-No PDF in the repo. Let me search more broadly and read the transcripts README.
-
-Let me check which PDF is the assignment. The CyberArk take-home reference is promising.
-
-That's a CV. Let me check the CyberArk take-home report and search more broadly for the assignment.
-
-Found the assignment PDF. Let me read it.
+[REDACTED FOR PRIVACY]
 
 I now have everything I need: the assignment PDF (source of truth) and the language design in `docs/decisions.md`. Here's my analysis before I write any code.
 

@@ -32,15 +32,11 @@ The library is installed as a Python package and used like this:
 
 ```python
 from expression_engine import Engine
-
 engine = Engine()
 expression = engine.compile("revenue - cost if active else 0")
-
-result = expression.evaluate(
-    {"revenue": 120, "cost": 75, "active": True}
-)
+result = expression.evaluate({"revenue": 120, "cost": 75, "active": True})
 ```
 
 The library supports numbers, strings, booleans, variables, arithmetic, comparisons, parentheses, Boolean operators, conditional expressions, local variables, mathematical functions, registered Python functions, local functions, null, and undefined.
 
-Engine.compile() performs tokenization, parsing, and validation once. The returned expression can be evaluated many times with different variables. It does not modify the input mapping and can be evaluated concurrently, as long as registered Python functions are also thread-safe.
+Compiled expressions can be reused with different variables and evaluated concurrently without modifying input mappings, provided registered Python functions are thread-safe.
