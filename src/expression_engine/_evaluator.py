@@ -1,16 +1,16 @@
-"""Stage 4: the expression evaluator (arithmetic and variable lookup only).
+"""Stages 4-5: the expression evaluator (arithmetic, variables, comparisons).
 
 This module walks an immutable AST from :mod:`expression_engine._ast` and
-produces a runtime Python value. Stage 4 implements only the smallest useful
-subset:
+produces a runtime Python value. It currently implements:
 
 * literals (integer, float, string, boolean, ``null``, ``undefined``);
 * external variable lookup;
 * unary numeric ``+`` and ``-``;
-* binary numeric ``+``, ``-``, ``*``, and ``/`` (true division).
+* binary numeric ``+``, ``-``, ``*``, and ``/`` (true division);
+* comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5).
 
-Everything else the parser can produce -- ``not``, comparisons, ``and``/``or``,
-and conditional expressions -- is intentionally outside this stage and raises a
+Everything else the parser can produce -- ``not``, ``and``/``or``, and
+conditional expressions -- is intentionally outside this stage and raises a
 clear :class:`~expression_engine.errors.ExpressionEvaluationError` without
 evaluating its operands.
 
@@ -75,6 +75,17 @@ _ARITHMETIC_OPERATORS: frozenset[TokenType] = frozenset(
     {TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.SLASH}
 )
 
+_COMPARISON_OPERATORS: frozenset[TokenType] = frozenset(
+    {
+        TokenType.EQ,
+        TokenType.NE,
+        TokenType.LT,
+        TokenType.LE,
+        TokenType.GT,
+        TokenType.GE,
+    }
+)
+
 
 def _is_number(value: object) -> bool:
     # Exact built-in numeric types only. ``type(True) is bool`` (not in the
@@ -102,8 +113,8 @@ def evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> objec
             types (for example a boolean, string, ``null``, or ``undefined``
             operand to arithmetic).
         DivisionByZeroError: If ``/`` is applied with a zero divisor.
-        ExpressionEvaluationError: If the expression uses an operation outside
-            Stage 4 (``not``, comparisons, ``and``/``or``, conditional), or if a
+        ExpressionEvaluationError: If the expression uses an operation that is
+            still unsupported (``not``, ``and``/``or``, conditional), or if a
             numeric literal cannot be converted. The relevant AST anchor
             position is attached.
     """
@@ -187,8 +198,10 @@ def _eval_unary(node: UnaryExpr, variables: Mapping[str, object]) -> object:
 
 def _eval_binary(node: BinaryExpr, variables: Mapping[str, object]) -> object:
     operator = node.operator
+    if operator in _COMPARISON_OPERATORS:
+        return _eval_comparison(node, variables)
     if operator not in _ARITHMETIC_OPERATORS:
-        # Comparisons and boolean and/or are outside Stage 4; do not evaluate
+        # Boolean and/or remain unsupported in this stage; do not evaluate
         # the operands.
         raise ExpressionEvaluationError(
             f"the {_OPERATOR_SYMBOL[operator]!r} operator is not supported "
@@ -216,3 +229,62 @@ def _eval_binary(node: BinaryExpr, variables: Mapping[str, object]) -> object:
     if right == 0:
         raise DivisionByZeroError("division by zero", node.position)
     return left / right
+
+
+def _eval_comparison(node: BinaryExpr, variables: Mapping[str, object]) -> bool:
+    operator = node.operator
+    # Evaluate operands left-to-right, exactly once each.
+    left = _eval(node.left, variables)
+    right = _eval(node.right, variables)
+
+    # Only the engine's own value types take part in comparison. Rejecting
+    # caller objects and built-in subclasses here guarantees their overloaded
+    # comparison methods are never invoked.
+    left_supported = (
+        type(left) in (int, float, str, bool) or left is None or left is UNDEFINED
+    )
+    right_supported = (
+        type(right) in (int, float, str, bool) or right is None or right is UNDEFINED
+    )
+    if not left_supported or not right_supported:
+        raise ExpressionTypeError(
+            f"unsupported operand type(s) for {_OPERATOR_SYMBOL[operator]!r}: "
+            f"{type(left).__name__} and {type(right).__name__}",
+            node.position,
+        )
+
+    if operator is TokenType.EQ or operator is TokenType.NE:
+        # Equality is type-aware and never coerces across categories: numbers
+        # (int/float) compare by value; bool, str, null, and undefined each
+        # compare only within their own category; any cross-category pair
+        # (for example a number and a bool, or null and undefined) is unequal.
+        if _is_number(left) and _is_number(right):
+            equal = left == right
+        elif type(left) is str and type(right) is str:
+            equal = left == right
+        elif type(left) is bool and type(right) is bool:
+            equal = left is right
+        elif left is None and right is None:
+            equal = True
+        elif left is UNDEFINED and right is UNDEFINED:
+            equal = True
+        else:
+            equal = False
+        return equal if operator is TokenType.EQ else not equal
+
+    # Ordered comparisons (< <= > >=) accept only two numbers. Ordered string
+    # comparison is deferred to a later stage; strings support == and != only.
+    if not (_is_number(left) and _is_number(right)):
+        raise ExpressionTypeError(
+            f"unsupported operand type(s) for {_OPERATOR_SYMBOL[operator]!r}: "
+            f"{type(left).__name__} and {type(right).__name__}",
+            node.position,
+        )
+
+    if operator is TokenType.LT:
+        return left < right
+    if operator is TokenType.LE:
+        return left <= right
+    if operator is TokenType.GT:
+        return left > right
+    return left >= right

@@ -311,6 +311,49 @@ No `Engine`, compiled `Expression`, cache, or benchmark is added.
   converts via Python's `float()` to a non-finite value (`inf`); Stage 4 accepts
   that normal Python result rather than adding finite-number validation.
 
+## Comparisons (Stage 5)
+
+This stage adds evaluation for the six comparison operators (`==`, `!=`, `<`,
+`<=`, `>`, `>=`) to the existing evaluator. Boolean operators (`and`, `or`,
+`not`), conditional expressions, string concatenation, functions, and local
+variables remain out of scope. The comparison logic lives inside `_evaluator.py`
+(a small `_eval_comparison` reached from `_eval_binary`); no new module, runtime
+dependency, or public API surface is added.
+
+- **Result type:** comparisons always return an exact Python `bool`.
+- **Evaluation:** the left operand is evaluated before the right, and each
+  operand is evaluated exactly once. The caller-provided variables mapping and
+  values are never mutated.
+- **Numbers:** the exact built-in types `int` and `float` are mutually
+  comparable (`1 == 1.0`, `1 < 1.5`, `2.0 >= 2`). Booleans are **not** numbers.
+  Ordered comparisons (`<`, `<=`, `>`, `>=`) accept only `int`/`float` operands.
+- **Booleans:** equality is defined only within `bool` (`true == true`); a
+  boolean is never equal to a number (`true == 1` is `false`, with no coercion).
+  Ordered comparison involving a boolean is an `ExpressionTypeError`.
+- **Strings:** the exact built-in `str` type supports equality and inequality
+  (`"a" == "a"`, `"a" != "b"`). Ordered string comparison (`<`, `<=`, `>`, `>=`)
+  is deferred to a later stage and raises `ExpressionTypeError`. There is no
+  coercion between strings and numbers.
+- **Equality across categories:** equality never coerces between categories.
+  Numbers, strings, booleans, `null`, and `undefined` each compare only within
+  their own category; any cross-category pair is unequal rather than an error.
+- **null / undefined:** `null == null` and `undefined == undefined` are true;
+  `null` and `undefined` remain distinct (`null == undefined` is false). A
+  missing variable evaluates to `undefined`, so `missing == undefined` is true.
+  Ordered comparison involving `null` or `undefined` is an `ExpressionTypeError`.
+- **Non-finite floats:** `inf` and `nan` are ordinary floats and follow Python
+  IEEE-754 semantics (`nan == nan` is false, `nan < 1` is false, `inf > 1` is
+  true). The nan-not-equal-to-itself rule applies only to numbers and does not
+  affect `null`/`undefined` equality.
+- **Unsupported operands:** caller-provided objects and built-in type subclasses
+  (e.g. an `int` or `str` subclass) are rejected with `ExpressionTypeError`
+  before any comparison is performed, so their overloaded comparison methods are
+  never invoked. This uses exact `type(...)` checks rather than `isinstance`.
+- **Errors and positions:** unsupported operand combinations raise
+  `ExpressionTypeError` (a subclass of `ExpressionEvaluationError`) anchored at
+  the comparison operator's position.
+- **Chaining:** chained comparisons remain rejected by the parser (unchanged).
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
