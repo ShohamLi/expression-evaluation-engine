@@ -1,5 +1,4 @@
-"""Stages 4-7: the expression evaluator (arithmetic, variables, comparisons,
-Boolean operators, conditionals).
+"""The expression evaluator: walks an immutable AST and returns a runtime value.
 
 This module walks an immutable AST from :mod:`expression_engine._ast` and
 produces a runtime Python value. It implements:
@@ -13,7 +12,10 @@ produces a runtime Python value. It implements:
 * strict Boolean ``not``, ``and``, and ``or`` with real short-circuit
   evaluation (Stage 6);
 * conditional ``value_if_true if condition else value_if_false`` with a strict
-  Boolean condition and selected-branch-only evaluation (Stage 7).
+  Boolean condition and selected-branch-only evaluation (Stage 7);
+* local bindings ``let name = value in body`` whose value is evaluated once in
+  the outer scope and whose binding is visible only while evaluating ``body``
+  (Stage 10).
 
 Runtime rules (consistent with ``docs/decisions.md``):
 
@@ -33,6 +35,7 @@ mutates the AST, the caller's mapping, or the caller's values.
 
 from __future__ import annotations
 
+from collections import ChainMap
 from collections.abc import Mapping
 
 from .errors import (
@@ -44,6 +47,7 @@ from ._ast import (
     BinaryExpr,
     ConditionalExpr,
     Expr,
+    LetExpr,
     LiteralExpr,
     UnaryExpr,
     VariableExpr,
@@ -144,6 +148,12 @@ def _eval(node: Expr, variables: Mapping[str, object]) -> object:
         if condition:
             return _eval(node.if_true, variables)
         return _eval(node.if_false, variables)
+    if isinstance(node, LetExpr):
+        # Evaluating the value before the scope keeps the binding non-recursive;
+        # ChainMap layers a fresh dict in front without mutating the caller map.
+        value = _eval(node.value, variables)
+        local_scope = ChainMap({node.name: value}, variables)
+        return _eval(node.body, local_scope)
     # Unreachable for the current AST, but guard against silently returning
     # None for an unexpected node type.
     raise ExpressionEvaluationError(
