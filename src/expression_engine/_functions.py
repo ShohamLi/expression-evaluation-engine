@@ -25,6 +25,7 @@ from ._ast import (
     Expr,
     LetExpr,
     LiteralExpr,
+    LocalFunctionExpr,
     UnaryExpr,
     VariableExpr,
 )
@@ -284,6 +285,12 @@ def validate_function_calls(node: Expr, registry: FunctionRegistry) -> FunctionB
             visit(current.value)
             visit(current.body)
             return
+        if isinstance(current, LocalFunctionExpr):
+            raise ExpressionValidationError(
+                "local function definitions are not supported until the "
+                f"evaluation stage at line {current.position.line}, "
+                f"column {current.position.column}"
+            )
         if isinstance(current, (LiteralExpr, VariableExpr)):
             return
         raise TypeError(f"unsupported expression node {type(current).__name__}")

@@ -497,6 +497,25 @@ dynamic attribute access such as ``getattr(math, name)``, runtime signature
 inspection, arbitrary Python execution, and local-function resolution in these
 stages.
 
+## Local functions: syntax and immutable AST (Stage 15)
+
+- Local function definition syntax is exactly
+  `let name(param1, param2) = function_body in body`, including zero-parameter
+  definitions such as `let constant() = 5 in constant()`.
+- `LocalFunctionExpr` stores `name`, `parameters`, `function_body`, `body`, and
+  `position`. Parameters are kept in source order as an immutable
+  `tuple[str, ...]`; the node is a frozen, slotted data-only dataclass.
+- Local function definitions share `let`'s lowest precedence. The function body
+  and outer body are full expressions, and the node's source position is
+  anchored at the `let` keyword.
+- Stage 15 is syntax and AST only. Duplicate names, built-in-name reservation,
+  registered-function shadowing, recursion, local-call resolution and arity,
+  lexical scope, and evaluation are deferred to Stage 16.
+- The project owner selected the local-function syntax and approved keeping
+  Stage 15 limited to parsing and immutable AST representation. AI assistance
+  suggested the `LocalFunctionExpr` name, field layout, implementation approach,
+  and focused test cases.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
