@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import math
 import re
+from collections import ChainMap
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -122,7 +123,7 @@ _BUILTIN_SPECS: Mapping[str, _BuiltinSpec] = MappingProxyType(
     }
 )
 
-_ResolvedFunction = _RegisteredFunction | _BuiltinSpec
+_ResolvedFunction = _RegisteredFunction | _BuiltinSpec | LocalFunctionExpr
 FunctionBindings = Mapping[CallExpr, _ResolvedFunction]
 EMPTY_FUNCTION_BINDINGS: FunctionBindings = MappingProxyType({})
 
@@ -260,42 +261,96 @@ def _resolve_call(node: CallExpr, registry: FunctionRegistry) -> _ResolvedFuncti
 
 
 def validate_function_calls(node: Expr, registry: FunctionRegistry) -> FunctionBindings:
-    """Validate and resolve every call in ``node`` exactly once."""
+    """Validate and lexically resolve every call in ``node`` exactly once."""
     bindings: dict[CallExpr, _ResolvedFunction] = {}
 
-    def visit(current: Expr) -> None:
+    def resolve_call(
+        call: CallExpr,
+        local_functions: Mapping[str, LocalFunctionExpr],
+        blocked_names: frozenset[str],
+    ) -> _ResolvedFunction:
+        local_function = local_functions.get(call.name)
+        if local_function is not None:
+            expected = len(local_function.parameters)
+            actual = len(call.arguments)
+            if actual != expected:
+                raise FunctionArityError(
+                    f"{call.name}() expected exactly {expected} argument(s), "
+                    f"got {actual}",
+                    call.position,
+                )
+            return local_function
+        if call.name in blocked_names:
+            raise ExpressionValidationError(
+                f"recursion is not supported for local function {call.name!r}",
+                call.position,
+            )
+        return _resolve_call(call, registry)
+
+    def validate_definition(definition: LocalFunctionExpr) -> None:
+        if definition.name in BUILTIN_NAMES:
+            raise ExpressionValidationError(
+                f"cannot define local function using built-in name "
+                f"{definition.name!r}",
+                definition.position,
+            )
+        seen: set[str] = set()
+        for parameter in definition.parameters:
+            if parameter in seen:
+                raise ExpressionValidationError(
+                    f"duplicate parameter {parameter!r} in local function "
+                    f"{definition.name!r}",
+                    definition.position,
+                )
+            seen.add(parameter)
+
+    def visit(
+        current: Expr,
+        local_functions: Mapping[str, LocalFunctionExpr],
+        blocked_names: frozenset[str],
+    ) -> None:
         if isinstance(current, CallExpr):
-            bindings[current] = _resolve_call(current, registry)
+            bindings[current] = resolve_call(
+                current, local_functions, blocked_names
+            )
             for argument in current.arguments:
-                visit(argument)
+                visit(argument, local_functions, blocked_names)
             return
         if isinstance(current, BinaryExpr):
-            visit(current.left)
-            visit(current.right)
+            visit(current.left, local_functions, blocked_names)
+            visit(current.right, local_functions, blocked_names)
             return
         if isinstance(current, UnaryExpr):
-            visit(current.operand)
+            visit(current.operand, local_functions, blocked_names)
             return
         if isinstance(current, ConditionalExpr):
-            visit(current.condition)
-            visit(current.if_true)
-            visit(current.if_false)
+            visit(current.condition, local_functions, blocked_names)
+            visit(current.if_true, local_functions, blocked_names)
+            visit(current.if_false, local_functions, blocked_names)
             return
         if isinstance(current, LetExpr):
-            visit(current.value)
-            visit(current.body)
+            visit(current.value, local_functions, blocked_names)
+            visit(current.body, local_functions, blocked_names)
             return
         if isinstance(current, LocalFunctionExpr):
-            raise ExpressionValidationError(
-                "local function definitions are not supported until the "
-                f"evaluation stage at line {current.position.line}, "
-                f"column {current.position.column}"
+            validate_definition(current)
+            visit(
+                current.function_body,
+                local_functions,
+                blocked_names | {current.name},
             )
+            body_functions = ChainMap({current.name: current}, local_functions)
+            visit(
+                current.body,
+                body_functions,
+                blocked_names,
+            )
+            return
         if isinstance(current, (LiteralExpr, VariableExpr)):
             return
         raise TypeError(f"unsupported expression node {type(current).__name__}")
 
-    visit(node)
+    visit(node, {}, frozenset())
     return MappingProxyType(bindings)
 
 
@@ -407,4 +462,8 @@ def invoke_call(
 ) -> object:
     if isinstance(function, _RegisteredFunction):
         return _call_registered(function, args, position)
+    if isinstance(function, LocalFunctionExpr):
+        raise ExpressionEvaluationError(
+            "local function call requires a lexical closure", position
+        )
     return _call_builtin(function.name, args, position)

@@ -516,6 +516,35 @@ stages.
   suggested the `LocalFunctionExpr` name, field layout, implementation approach,
   and focused test cases.
 
+## Local functions: validation and evaluation (Stage 16)
+
+- Local functions use lexical, definition-site variable scope. Parameters are
+  exact positional bindings layered over captured variables, duplicate parameter
+  names are rejected, and nested local functions may capture outer parameters
+  and call other visible outer local functions.
+- Calls are resolved and arity-checked during compilation in every AST branch.
+  Resolution order is local lexical function, registered host function, then
+  built-in function. Built-in names are reserved; local functions may shadow
+  registered functions. Direct recursion, including references hidden in
+  skipped or nested code, is rejected in v1.
+- Function bodies are evaluated only when called. Arguments are evaluated
+  left-to-right exactly once before a fresh parameter scope is created; every
+  call evaluates the body again. Local expression results use normal evaluator
+  semantics and do not pass through registered-host-function return validation.
+- Each evaluation creates frozen private closures containing the definition-site
+  variable mapping and visible local closures. Calls are prebound to immutable
+  `LocalFunctionExpr` definitions, and runtime closure mappings are local to one
+  evaluation, so compiled expressions store no captured values or shared mutable
+  evaluation state and remain reusable and thread-safe.
+- Known limitations remain intentional: no recursion, anonymous or higher-order
+  functions, default or variadic parameters, keyword arguments, memoization, or
+  runtime function-name lookup.
+- Project-owner decisions: the Stage 15 syntax, lexical scope, exact positional
+  parameters, no recursion in v1, reserved built-in names, and allowing local
+  functions to shadow registered functions. AI assistance suggested the
+  compile-time binding details, per-evaluation closure representation, and
+  edge-case tests.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
