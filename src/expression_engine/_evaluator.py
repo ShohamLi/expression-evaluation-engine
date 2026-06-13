@@ -1,8 +1,8 @@
-"""Stages 4-6: the expression evaluator (arithmetic, variables, comparisons,
-Boolean operators).
+"""Stages 4-7: the expression evaluator (arithmetic, variables, comparisons,
+Boolean operators, conditionals).
 
 This module walks an immutable AST from :mod:`expression_engine._ast` and
-produces a runtime Python value. It currently implements:
+produces a runtime Python value. It implements:
 
 * literals (integer, float, string, boolean, ``null``, ``undefined``);
 * external variable lookup;
@@ -10,12 +10,9 @@ produces a runtime Python value. It currently implements:
 * binary numeric ``+``, ``-``, ``*``, and ``/`` (true division);
 * comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5);
 * strict Boolean ``not``, ``and``, and ``or`` with real short-circuit
-  evaluation (Stage 6).
-
-Conditional expressions are the only remaining parser output that is
-intentionally outside this stage; they raise a clear
-:class:`~expression_engine.errors.ExpressionEvaluationError` without evaluating
-their operands.
+  evaluation (Stage 6);
+* conditional ``value_if_true if condition else value_if_false`` with a strict
+  Boolean condition and selected-branch-only evaluation (Stage 7).
 
 Runtime rules (consistent with ``docs/decisions.md``):
 
@@ -116,10 +113,8 @@ def evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> objec
             types (for example a boolean, string, ``null``, or ``undefined``
             operand to arithmetic).
         DivisionByZeroError: If ``/`` is applied with a zero divisor.
-        ExpressionEvaluationError: If the expression uses an operation that is
-            still unsupported (a conditional expression), or if a numeric
-            literal cannot be converted. The relevant AST anchor position is
-            attached.
+        ExpressionEvaluationError: If a numeric literal cannot be converted. The
+            relevant AST anchor position is attached.
     """
 
     if variables is None:
@@ -137,10 +132,17 @@ def _eval(node: Expr, variables: Mapping[str, object]) -> object:
     if isinstance(node, BinaryExpr):
         return _eval_binary(node, variables)
     if isinstance(node, ConditionalExpr):
-        raise ExpressionEvaluationError(
-            "conditional expressions are not supported in this version",
-            node.position,
-        )
+        condition = _eval(node.condition, variables)
+        if type(condition) is not bool:
+            raise ExpressionTypeError(
+                f"conditional condition requires a bool, "
+                f"got {type(condition).__name__}",
+                node.position,
+            )
+        # Only the selected branch is evaluated.
+        if condition:
+            return _eval(node.if_true, variables)
+        return _eval(node.if_false, variables)
     # Unreachable for the current AST, but guard against silently returning
     # None for an unexpected node type.
     raise ExpressionEvaluationError(
