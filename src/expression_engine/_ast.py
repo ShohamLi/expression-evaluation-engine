@@ -35,6 +35,7 @@ __all__ = [
     "BinaryExpr",
     "ConditionalExpr",
     "LetExpr",
+    "CallExpr",
     "Expr",
 ]
 
@@ -150,6 +151,26 @@ class LetExpr:
     position: Position
 
 
+@dataclass(frozen=True, slots=True)
+class CallExpr:
+    """A function call ``name(arg0, arg1, ...)``.
+
+    Only an identifier may be called (no arbitrary callable expressions and no
+    chaining); the callee is therefore stored as its identifier text rather than
+    as a nested node.
+
+    Attributes:
+        name: The called function's identifier.
+        arguments: The argument expressions in source order, as an immutable
+            tuple (empty for a zero-argument call ``name()``).
+        position: Anchor position of the function identifier's first character.
+    """
+
+    name: str
+    arguments: tuple["Expr", ...]
+    position: Position
+
+
 Expr = (
     LiteralExpr
     | VariableExpr
@@ -157,5 +178,6 @@ Expr = (
     | BinaryExpr
     | ConditionalExpr
     | LetExpr
+    | CallExpr
 )
 """Any expression node. The parser returns one ``Expr`` per parse."""

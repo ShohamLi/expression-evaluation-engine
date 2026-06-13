@@ -425,6 +425,24 @@ never copied or mutated, and all scope state is local to one `_eval` call, so th
 immutable AST holds no shared evaluation state and stays safe for repeated and
 concurrent evaluation.
 
+## Function calls: syntax and AST (Stage 11)
+
+- Call syntax is `name(arg0, arg1, ...)`. Only an identifier may be called:
+  parenthesized or arbitrary expressions are not callable (`(f)(1)`, `1(2)`),
+  and calls do not chain (`f(1)(2)` is a `ParserError`). Keywords are not
+  identifiers, so they cannot be function names.
+- Calls are parsed in the identifier branch of `_primary` (tightest binding); a
+  `(` immediately following an identifier begins the call. No generic
+  postfix-expression layer is introduced.
+- Arguments are full expressions (parsed via `_expression()`), so arithmetic,
+  comparisons, Boolean operators, conditionals, and bare `let` are all valid
+  argument forms. Zero-argument calls are allowed; trailing commas are rejected.
+- `CallExpr` is immutable (`frozen=True, slots=True`); `arguments` is a
+  `tuple[Expr, ...]` (never a mutable list) and `position` is anchored at the
+  function identifier. This stage adds syntax and AST only; evaluation stays out
+  of scope, so a `CallExpr` reaching the evaluator hits the existing
+  unsupported-node error.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and

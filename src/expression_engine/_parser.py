@@ -23,7 +23,9 @@ Grammar and precedence (lowest binding first; one method per level):
     additive       := multiplicative ( ("+"|"-") multiplicative )*   left-assoc
     multiplicative := unary ( ("*"|"/") unary )*                     left-assoc
     unary          := ("not"|"+"|"-") unary | primary                repeatable
-    primary        := literal | identifier | "(" expression ")"
+    primary        := literal
+                    | IDENTIFIER ( "(" ( expression ("," expression)* )? ")" )?
+                    | "(" expression ")"
 
 Left-associative levels are written as iterative loops; recursion is used only
 where it is the natural shape of the grammar: nested parentheses, repeated
@@ -43,6 +45,7 @@ from collections.abc import Sequence
 from .errors import ParserError
 from ._ast import (
     BinaryExpr,
+    CallExpr,
     ConditionalExpr,
     Expr,
     LetExpr,
@@ -220,6 +223,11 @@ class _Parser:
             return LiteralExpr(token.type, token.value, token.position)
         if token.type is TokenType.IDENTIFIER:
             self._advance()
+            # A `(` immediately after an identifier begins a call; only an
+            # identifier is callable (no chaining, no arbitrary callee), so the
+            # call is parsed here rather than as a generic postfix layer.
+            if self._current().type is TokenType.LPAREN:
+                return self._call(token)
             return VariableExpr(token.value, token.position)
         if token.type is TokenType.LPAREN:
             self._advance()
@@ -227,6 +235,20 @@ class _Parser:
             self._expect(TokenType.RPAREN, "')'")
             return grouped
         raise self._unexpected(token, "an expression")
+
+    def _call(self, name: Token) -> Expr:
+        # Caller has confirmed the current token is the opening `(`. Arguments
+        # are full expressions; an empty list is a zero-argument call. There is
+        # no trailing comma: after `,` another expression is required.
+        self._advance()
+        arguments: list[Expr] = []
+        if self._current().type is not TokenType.RPAREN:
+            arguments.append(self._expression())
+            while self._current().type is TokenType.COMMA:
+                self._advance()
+                arguments.append(self._expression())
+        self._expect(TokenType.RPAREN, "')'")
+        return CallExpr(name.value, tuple(arguments), name.position)
 
     def _current(self) -> Token:
         return self._tokens[self._index]
