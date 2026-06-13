@@ -374,6 +374,23 @@ added.
   required, its evaluation errors propagate normally.
 - **null / undefined:** never converted to `False`.
 
+## Conditional expressions (Stage 7)
+
+This stage adds evaluation for `value_if_true if condition else value_if_false`
+inside the existing evaluator. No new module, error class, or public API is
+added.
+
+- **Strict Boolean condition:** the condition must be the exact built-in `bool`
+  type; there is no implicit truthiness. Numbers, strings, `null`, `undefined`,
+  and missing variables are invalid conditions and raise `ExpressionTypeError`
+  at the `if` anchor position.
+- **Condition evaluated once.**
+- **Selected branch only:** when the condition is `True` only `value_if_true` is
+  evaluated; when `False` only `value_if_false` is evaluated. The unselected
+  branch is never evaluated or validated.
+- **Result returned unchanged:** the selected branch's value (any supported
+  type, including `null` and `undefined`) is returned without coercion.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and

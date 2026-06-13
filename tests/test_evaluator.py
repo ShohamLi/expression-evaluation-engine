@@ -358,13 +358,6 @@ def test_unary_type_error_position_is_operator() -> None:
     assert (info.value.position.line, info.value.position.column) == (1, 1)
 
 
-def test_unsupported_operation_position() -> None:
-    with pytest.raises(ExpressionEvaluationError) as info:
-        run("a if b else c")
-    assert info.value.position is not None
-    assert (info.value.position.line, info.value.position.column) == (1, 3)
-
-
 def test_error_message_includes_line_and_column() -> None:
     with pytest.raises(DivisionByZeroError) as info:
         run("1 / 0")
@@ -404,36 +397,6 @@ def test_operands_evaluated_left_to_right() -> None:
     variables = RecordingMapping({"a": 1, "b": 2, "c": 3})
     run("a + b - c", variables)
     assert variables.lookups == ["a", "b", "c"]
-
-
-def test_conditional_is_unsupported_and_skips_operands() -> None:
-    variables = RecordingMapping({"a": 1, "b": 2, "c": 3})
-    with pytest.raises(ExpressionEvaluationError):
-        run("a if b else c", variables)
-    assert variables.lookups == []
-
-
-# --------------------------------------------------------------------------- #
-# Unsupported Stage 4 operations
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "1 if true else 2",
-    ],
-)
-def test_unsupported_operations_raise_evaluation_error(source: str) -> None:
-    with pytest.raises(ExpressionEvaluationError):
-        run(source)
-
-
-def test_unsupported_operation_is_not_type_error() -> None:
-    # Unsupported ops are base evaluation errors, not type errors.
-    with pytest.raises(ExpressionEvaluationError) as info:
-        run("1 if true else 2")
-    assert not isinstance(info.value, ExpressionTypeError)
 
 
 # --------------------------------------------------------------------------- #
