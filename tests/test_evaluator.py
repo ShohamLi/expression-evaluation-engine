@@ -360,7 +360,7 @@ def test_unary_type_error_position_is_operator() -> None:
 
 def test_unsupported_operation_position() -> None:
     with pytest.raises(ExpressionEvaluationError) as info:
-        run("1 < 2")
+        run("a and b")
     assert info.value.position is not None
     assert (info.value.position.line, info.value.position.column) == (1, 3)
 
@@ -436,12 +436,6 @@ def test_conditional_is_unsupported_and_skips_operands() -> None:
     "source",
     [
         "not true",
-        "1 == 1",
-        "1 != 2",
-        "1 < 2",
-        "1 <= 2",
-        "1 > 2",
-        "1 >= 2",
         "true and false",
         "true or false",
         "1 if true else 2",
@@ -455,7 +449,7 @@ def test_unsupported_operations_raise_evaluation_error(source: str) -> None:
 def test_unsupported_operation_is_not_type_error() -> None:
     # Unsupported ops are base evaluation errors, not type errors.
     with pytest.raises(ExpressionEvaluationError) as info:
-        run("1 < 2")
+        run("true and false")
     assert not isinstance(info.value, ExpressionTypeError)
 
 
