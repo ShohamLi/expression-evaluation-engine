@@ -90,7 +90,20 @@ class ExpressionValidationError(ExpressionError):
 
 
 class ExpressionEvaluationError(ExpressionError):
-    """Raised when a compiled expression fails during evaluation."""
+    """Raised when an expression fails during evaluation.
+
+    The source ``position`` is optional so existing message-only construction
+    keeps working, but when the evaluator supplies the offending AST anchor it
+    is kept on the ``position`` attribute and folded into the message (matching
+    :class:`LexerError` and :class:`ParserError`). The two subclasses below
+    inherit this behavior.
+    """
+
+    def __init__(self, message: str, position: "Position | None" = None) -> None:
+        self.position = position
+        if position is not None:
+            message = f"{message} at line {position.line}, column {position.column}"
+        super().__init__(message)
 
 
 class ExpressionTypeError(ExpressionEvaluationError):
