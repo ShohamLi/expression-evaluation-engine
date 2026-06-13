@@ -410,6 +410,21 @@ added.
 - This stage adds syntax and AST only; evaluation and runtime scope are deferred
   to Stage 10.
 
+## Local bindings: evaluation (Stage 10)
+
+Runtime evaluation for `LetExpr` is one direct branch in `_eval`. `value` is
+evaluated first, exactly once, in the outer scope; `body` is then evaluated in a
+local scope. Evaluating `value` before building the scope makes the binding
+non-recursive (it is invisible inside its own `value`). The scope is
+`collections.ChainMap({name: value}, variables)` — a fresh dict layered in front
+of the caller mapping; it shadows by lookup order, supports nested
+bindings/shadowing by stacking, and restores the outer scope when `body` returns.
+A copied dict (copies the whole context per binding) and a custom scope class
+(unnecessary abstraction) were both rejected. The caller mapping is only read,
+never copied or mutated, and all scope state is local to one `_eval` call, so the
+immutable AST holds no shared evaluation state and stays safe for repeated and
+concurrent evaluation.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
