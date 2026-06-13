@@ -15,7 +15,10 @@ position attached.
 Grammar and precedence (lowest binding first; one method per level):
 
     expression     := "let" IDENTIFIER "=" expression "in" expression
+                    | "let" IDENTIFIER "(" parameters? ")" "=" expression
+                      "in" expression
                     | conditional                                    lowest binding
+    parameters     := IDENTIFIER ( "," IDENTIFIER )*
     conditional    := or_expr ( "if" or_expr "else" conditional )?   right-assoc
     or_expr        := and_expr ( "or" and_expr )*                    left-assoc
     and_expr       := comparison ( "and" comparison )*               left-assoc
@@ -50,6 +53,7 @@ from ._ast import (
     Expr,
     LetExpr,
     LiteralExpr,
+    LocalFunctionExpr,
     UnaryExpr,
     VariableExpr,
 )
@@ -129,6 +133,30 @@ class _Parser:
     def _let(self) -> Expr:
         let_token = self._advance()
         name = self._expect(TokenType.IDENTIFIER, "an identifier")
+        if self._current().type is TokenType.LPAREN:
+            self._advance()
+            parameters: list[str] = []
+            if self._current().type is not TokenType.RPAREN:
+                parameter = self._expect(TokenType.IDENTIFIER, "a parameter name")
+                parameters.append(parameter.value)
+                while self._current().type is TokenType.COMMA:
+                    self._advance()
+                    parameter = self._expect(
+                        TokenType.IDENTIFIER, "a parameter name"
+                    )
+                    parameters.append(parameter.value)
+            self._expect(TokenType.RPAREN, "')'")
+            self._expect(TokenType.ASSIGN, "'='")
+            function_body = self._expression()
+            self._expect(TokenType.IN, "'in'")
+            body = self._expression()
+            return LocalFunctionExpr(
+                name.value,
+                tuple(parameters),
+                function_body,
+                body,
+                let_token.position,
+            )
         self._expect(TokenType.ASSIGN, "'='")
         value = self._expression()
         self._expect(TokenType.IN, "'in'")

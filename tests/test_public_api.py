@@ -22,6 +22,7 @@ from expression_engine import (
     Expression,
     ExpressionSyntaxError,
     ExpressionTypeError,
+    ExpressionValidationError,
     DivisionByZeroError,
     UnknownFunctionError,
 )
@@ -136,3 +137,11 @@ def test_concurrent_evaluation_with_independent_mappings() -> None:
 def test_unknown_function_call_fails_during_compile() -> None:
     with pytest.raises(UnknownFunctionError):
         Engine().compile("f(1)")
+
+
+def test_local_function_definition_fails_with_clear_validation_error() -> None:
+    with pytest.raises(
+        ExpressionValidationError,
+        match="local function definitions are not supported until the evaluation stage",
+    ):
+        Engine().compile("let double(x) = x * 2 in double(4)")

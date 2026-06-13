@@ -35,6 +35,7 @@ __all__ = [
     "BinaryExpr",
     "ConditionalExpr",
     "LetExpr",
+    "LocalFunctionExpr",
     "CallExpr",
     "Expr",
 ]
@@ -152,6 +153,25 @@ class LetExpr:
 
 
 @dataclass(frozen=True, slots=True)
+class LocalFunctionExpr:
+    """A local function definition ``let name(parameters) = body in expression``.
+
+    Attributes:
+        name: The locally bound function identifier.
+        parameters: Parameter names in source order, as an immutable tuple.
+        function_body: The expression that forms the function's body.
+        body: The expression where the local function is in scope.
+        position: Anchor position of the ``let`` keyword.
+    """
+
+    name: str
+    parameters: tuple[str, ...]
+    function_body: "Expr"
+    body: "Expr"
+    position: Position
+
+
+@dataclass(frozen=True, slots=True)
 class CallExpr:
     """A function call ``name(arg0, arg1, ...)``.
 
@@ -178,6 +198,7 @@ Expr = (
     | BinaryExpr
     | ConditionalExpr
     | LetExpr
+    | LocalFunctionExpr
     | CallExpr
 )
 """Any expression node. The parser returns one ``Expr`` per parse."""
