@@ -6,6 +6,7 @@ granularity they need:
 
     ExpressionError                     base for everything raised by this library
     ├── ExpressionSyntaxError           lexing/parsing problems (compile time)
+    │   └── LexerError                  tokenization failure carrying a source position
     ├── ExpressionValidationError       static checks after a successful parse
     │   ├── UnknownFunctionError        call to a name that resolves to no function
     │   └── FunctionArityError          call with the wrong number of arguments
@@ -23,9 +24,15 @@ No behavior beyond construction is attached to these classes in this stage.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._tokens import Position
+
 __all__ = [
     "ExpressionError",
     "ExpressionSyntaxError",
+    "LexerError",
     "ExpressionValidationError",
     "ExpressionEvaluationError",
     "ExpressionTypeError",
@@ -41,6 +48,22 @@ class ExpressionError(Exception):
 
 class ExpressionSyntaxError(ExpressionError):
     """Raised when source text cannot be tokenized or parsed."""
+
+
+class LexerError(ExpressionSyntaxError):
+    """Raised when source text cannot be tokenized (lexical analysis).
+
+    Covers invalid characters, malformed numbers, invalid string escapes, and
+    unterminated strings. The offending source :class:`~._tokens.Position` is
+    kept on the ``position`` attribute and folded into the message so callers
+    can locate the problem.
+    """
+
+    def __init__(self, message: str, position: "Position") -> None:
+        self.position = position
+        super().__init__(
+            f"{message} at line {position.line}, column {position.column}"
+        )
 
 
 class ExpressionValidationError(ExpressionError):
