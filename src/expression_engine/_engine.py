@@ -48,6 +48,7 @@ class Expression:
             The evaluated value.
 
         Raises:
+            TypeError: If ``variables`` is neither a mapping nor ``None``.
             ExpressionEvaluationError: If evaluation fails.
         """
         return evaluate(self._ast, variables, self._function_bindings)
