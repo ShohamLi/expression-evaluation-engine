@@ -18,6 +18,8 @@ produces a runtime Python value. It implements:
   (Stage 10).
 * built-in mathematical functions and safely registered host functions whose
   names and arities were resolved during compilation (Stages 13-14).
+* lexically scoped local functions with compile-time call resolution and
+  per-evaluation closures (Stage 16).
 
 Runtime rules (consistent with ``docs/decisions.md``):
 
@@ -39,6 +41,8 @@ from __future__ import annotations
 
 from collections import ChainMap
 from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
 
 from .errors import (
     DivisionByZeroError,
@@ -52,6 +56,7 @@ from ._ast import (
     Expr,
     LetExpr,
     LiteralExpr,
+    LocalFunctionExpr,
     UnaryExpr,
     VariableExpr,
 )
@@ -96,6 +101,17 @@ _COMPARISON_OPERATORS: frozenset[TokenType] = frozenset(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class _LocalFunctionClosure:
+    variables: Mapping[str, object]
+    functions: Mapping[LocalFunctionExpr, "_LocalFunctionClosure"]
+
+
+_EMPTY_LOCAL_FUNCTIONS: Mapping[
+    LocalFunctionExpr, _LocalFunctionClosure
+] = MappingProxyType({})
+
+
 def _is_number(value: object) -> bool:
     # Exact built-in numeric types only. ``type(True) is bool`` (not in the
     # tuple), so booleans are rejected, and caller-defined int/float subclasses
@@ -136,24 +152,27 @@ def evaluate(
         variables = {}
     if function_bindings is None:
         function_bindings = EMPTY_FUNCTION_BINDINGS
-    return _eval(node, variables, function_bindings)
+    return _eval(node, variables, function_bindings, _EMPTY_LOCAL_FUNCTIONS)
 
 
 def _eval(
     node: Expr,
     variables: Mapping[str, object],
     function_bindings: FunctionBindings,
+    local_functions: Mapping[LocalFunctionExpr, _LocalFunctionClosure],
 ) -> object:
     if isinstance(node, LiteralExpr):
         return _eval_literal(node)
     if isinstance(node, VariableExpr):
         return variables.get(node.name, UNDEFINED)
     if isinstance(node, UnaryExpr):
-        return _eval_unary(node, variables, function_bindings)
+        return _eval_unary(node, variables, function_bindings, local_functions)
     if isinstance(node, BinaryExpr):
-        return _eval_binary(node, variables, function_bindings)
+        return _eval_binary(node, variables, function_bindings, local_functions)
     if isinstance(node, ConditionalExpr):
-        condition = _eval(node.condition, variables, function_bindings)
+        condition = _eval(
+            node.condition, variables, function_bindings, local_functions
+        )
         if type(condition) is not bool:
             raise ExpressionTypeError(
                 f"conditional condition requires a bool, "
@@ -162,17 +181,25 @@ def _eval(
             )
         # Only the selected branch is evaluated.
         if condition:
-            return _eval(node.if_true, variables, function_bindings)
-        return _eval(node.if_false, variables, function_bindings)
+            return _eval(
+                node.if_true, variables, function_bindings, local_functions
+            )
+        return _eval(node.if_false, variables, function_bindings, local_functions)
     if isinstance(node, LetExpr):
         # Evaluating the value before the scope keeps the binding non-recursive;
         # ChainMap layers a fresh dict in front without mutating the caller map.
-        value = _eval(node.value, variables, function_bindings)
+        value = _eval(node.value, variables, function_bindings, local_functions)
         local_scope = ChainMap({node.name: value}, variables)
-        return _eval(node.body, local_scope, function_bindings)
+        return _eval(
+            node.body, local_scope, function_bindings, local_functions
+        )
+    if isinstance(node, LocalFunctionExpr):
+        closure = _LocalFunctionClosure(variables, local_functions)
+        scoped_functions = ChainMap({node: closure}, local_functions)
+        return _eval(node.body, variables, function_bindings, scoped_functions)
     if isinstance(node, CallExpr):
         evaluated_args = tuple(
-            _eval(argument, variables, function_bindings)
+            _eval(argument, variables, function_bindings, local_functions)
             for argument in node.arguments
         )
         try:
@@ -182,6 +209,30 @@ def _eval(
                 f"function call {node.name!r} was not resolved during compilation",
                 node.position,
             ) from error
+        if isinstance(function, LocalFunctionExpr):
+            try:
+                closure = local_functions[function]
+            except KeyError as error:
+                raise ExpressionEvaluationError(
+                    f"local function {function.name!r} has no lexical closure",
+                    node.position,
+                ) from error
+            if len(evaluated_args) != len(function.parameters):
+                raise ExpressionEvaluationError(
+                    f"local function {function.name!r} has inconsistent "
+                    "compiled arity",
+                    node.position,
+                )
+            parameter_scope = ChainMap(
+                dict(zip(function.parameters, evaluated_args)),
+                closure.variables,
+            )
+            return _eval(
+                function.function_body,
+                parameter_scope,
+                function_bindings,
+                closure.functions,
+            )
         return invoke_call(function, evaluated_args, node.position)
     raise ExpressionEvaluationError(
         "cannot evaluate unsupported expression node", node.position
@@ -224,8 +275,11 @@ def _eval_unary(
     node: UnaryExpr,
     variables: Mapping[str, object],
     function_bindings: FunctionBindings,
+    local_functions: Mapping[LocalFunctionExpr, _LocalFunctionClosure],
 ) -> object:
-    operand = _eval(node.operand, variables, function_bindings)
+    operand = _eval(
+        node.operand, variables, function_bindings, local_functions
+    )
 
     if node.operator is TokenType.NOT:
         # Strict Boolean: only an exact bool is accepted, no truthiness.
@@ -251,10 +305,11 @@ def _eval_binary(
     node: BinaryExpr,
     variables: Mapping[str, object],
     function_bindings: FunctionBindings,
+    local_functions: Mapping[LocalFunctionExpr, _LocalFunctionClosure],
 ) -> object:
     operator = node.operator
     if operator is TokenType.AND or operator is TokenType.OR:
-        left = _eval(node.left, variables, function_bindings)
+        left = _eval(node.left, variables, function_bindings, local_functions)
         if type(left) is not bool:
             raise ExpressionTypeError(
                 f"{_OPERATOR_SYMBOL[operator]!r} requires a bool, "
@@ -265,7 +320,7 @@ def _eval_binary(
             return False
         if operator is TokenType.OR and left:
             return True
-        right = _eval(node.right, variables, function_bindings)
+        right = _eval(node.right, variables, function_bindings, local_functions)
         if type(right) is not bool:
             raise ExpressionTypeError(
                 f"{_OPERATOR_SYMBOL[operator]!r} requires a bool, "
@@ -275,15 +330,17 @@ def _eval_binary(
         return right
 
     if operator in _COMPARISON_OPERATORS:
-        return _eval_comparison(node, variables, function_bindings)
+        return _eval_comparison(
+            node, variables, function_bindings, local_functions
+        )
     if operator not in _ARITHMETIC_OPERATORS:
         raise ExpressionEvaluationError(
             f"cannot evaluate operator {_OPERATOR_SYMBOL[operator]!r}",
             node.position,
         )
 
-    left = _eval(node.left, variables, function_bindings)
-    right = _eval(node.right, variables, function_bindings)
+    left = _eval(node.left, variables, function_bindings, local_functions)
+    right = _eval(node.right, variables, function_bindings, local_functions)
     if operator is TokenType.PLUS and type(left) is str and type(right) is str:
         return left + right
     if not _is_number(left) or not _is_number(right):
@@ -309,10 +366,11 @@ def _eval_comparison(
     node: BinaryExpr,
     variables: Mapping[str, object],
     function_bindings: FunctionBindings,
+    local_functions: Mapping[LocalFunctionExpr, _LocalFunctionClosure],
 ) -> bool:
     operator = node.operator
-    left = _eval(node.left, variables, function_bindings)
-    right = _eval(node.right, variables, function_bindings)
+    left = _eval(node.left, variables, function_bindings, local_functions)
+    right = _eval(node.right, variables, function_bindings, local_functions)
 
     # Only the engine's own value types take part in comparison. Rejecting
     # caller objects and built-in subclasses here guarantees their overloaded
