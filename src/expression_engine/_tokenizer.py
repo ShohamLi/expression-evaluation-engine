@@ -25,7 +25,8 @@ Design notes (smallest reasonable semantics, consistent with the decision log):
 * String literals may be single- or double-quoted. The escapes ``\\\\``,
   ``\\"``, ``\\'``, ``\\n``, ``\\t`` and ``\\r`` are decoded; any other escape
   is an error. A string token's value is the decoded text. A raw newline before
-  the closing quote is an unterminated string (no multiline strings in v1).
+  the closing quote is an unterminated string; both ``\n`` and ``\r`` count as
+  raw line breaks (no multiline strings in v1).
 * Identifiers are ASCII ``[A-Za-z_][A-Za-z0-9_]*`` and keyword matching is
   case-sensitive. Unicode is supported only inside string literals.
 * Unary minus is not handled here: ``-5`` lexes as ``MINUS`` then ``INTEGER``.
@@ -216,9 +217,9 @@ class _Tokenizer:
                 self._advance()
                 break
 
-            if char == "\n":
-                # No multiline strings in v1; a raw newline means the closing
-                # quote was never reached on this line.
+            if char in ("\n", "\r"):
+                # No multiline strings in v1; a raw line break means the
+                # closing quote was never reached on this line.
                 raise self._error("unterminated string literal", start)
 
             if char == "\\":

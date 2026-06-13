@@ -164,6 +164,32 @@ def test_local_bindings_through_public_api() -> None:
     assert Engine().compile("let x = 1 in x + 2").evaluate() == 3
 
 
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("false and (1 / 0 == 0)", False),
+        ("true or (1 / 0 == 0)", True),
+    ],
+)
+def test_boolean_short_circuit_through_public_api(
+    source: str, expected: bool
+) -> None:
+    assert Engine().compile(source).evaluate() is expected
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("7 if true else 1 / 0", 7),
+        ("1 / 0 if false else 9", 9),
+    ],
+)
+def test_conditional_evaluates_only_selected_branch_through_public_api(
+    source: str, expected: int
+) -> None:
+    assert Engine().compile(source).evaluate() == expected
+
+
 def test_expression_is_immutable() -> None:
     expression = Engine().compile("1")
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -181,13 +207,29 @@ def test_repr_omits_ast() -> None:
 
 
 def test_concurrent_evaluation_with_independent_mappings() -> None:
-    expression = Engine().compile("x + 1")
-    mappings = [{"x": i} for i in range(8)]
+    expression = Engine().compile(
+        "let offset = base + 1 in "
+        "let adjust(value) = max(value, 0) + abs(delta) in "
+        "adjust(offset) if enabled else 0"
+    )
+    mappings = [
+        {
+            "base": index - 256,
+            "delta": index % 7 - 3,
+            "enabled": index % 3 != 0,
+        }
+        for index in range(512)
+    ]
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(expression.evaluate, mappings))
 
-    assert results == [i + 1 for i in range(8)]
+    assert results == [
+        max(mapping["base"] + 1, 0) + abs(mapping["delta"])
+        if mapping["enabled"]
+        else 0
+        for mapping in mappings
+    ]
 
 
 def test_unknown_function_call_fails_during_compile() -> None:

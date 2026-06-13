@@ -269,6 +269,16 @@ def test_newline_in_string_is_unterminated() -> None:
         tokenize('"line one\nline two"')
 
 
+def test_carriage_return_in_string_is_unterminated() -> None:
+    with pytest.raises(ExpressionSyntaxError):
+        tokenize('"line one\rline two"')
+
+
+def test_escaped_newline_and_carriage_return_are_decoded() -> None:
+    token = tokenize(r'"line one\nline two\rend"')[0]
+    assert token.value == "line one\nline two\rend"
+
+
 # --------------------------------------------------------------------------- #
 # Source positions
 # --------------------------------------------------------------------------- #
