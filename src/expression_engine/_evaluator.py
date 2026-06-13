@@ -1,4 +1,5 @@
-"""Stages 4-5: the expression evaluator (arithmetic, variables, comparisons).
+"""Stages 4-6: the expression evaluator (arithmetic, variables, comparisons,
+Boolean operators).
 
 This module walks an immutable AST from :mod:`expression_engine._ast` and
 produces a runtime Python value. It currently implements:
@@ -7,12 +8,14 @@ produces a runtime Python value. It currently implements:
 * external variable lookup;
 * unary numeric ``+`` and ``-``;
 * binary numeric ``+``, ``-``, ``*``, and ``/`` (true division);
-* comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5).
+* comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5);
+* strict Boolean ``not``, ``and``, and ``or`` with real short-circuit
+  evaluation (Stage 6).
 
-Everything else the parser can produce -- ``not``, ``and``/``or``, and
-conditional expressions -- is intentionally outside this stage and raises a
-clear :class:`~expression_engine.errors.ExpressionEvaluationError` without
-evaluating its operands.
+Conditional expressions are the only remaining parser output that is
+intentionally outside this stage; they raise a clear
+:class:`~expression_engine.errors.ExpressionEvaluationError` without evaluating
+their operands.
 
 Runtime rules (consistent with ``docs/decisions.md``):
 
@@ -114,9 +117,9 @@ def evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> objec
             operand to arithmetic).
         DivisionByZeroError: If ``/`` is applied with a zero divisor.
         ExpressionEvaluationError: If the expression uses an operation that is
-            still unsupported (``not``, ``and``/``or``, conditional), or if a
-            numeric literal cannot be converted. The relevant AST anchor
-            position is attached.
+            still unsupported (a conditional expression), or if a numeric
+            literal cannot be converted. The relevant AST anchor position is
+            attached.
     """
 
     if variables is None:
@@ -178,13 +181,17 @@ def _eval_literal(node: LiteralExpr) -> object:
 
 
 def _eval_unary(node: UnaryExpr, variables: Mapping[str, object]) -> object:
-    if node.operator is TokenType.NOT:
-        # `not` is outside Stage 4; do not evaluate the operand.
-        raise ExpressionEvaluationError(
-            "the 'not' operator is not supported in this version", node.position
-        )
-
     operand = _eval(node.operand, variables)
+
+    if node.operator is TokenType.NOT:
+        # Strict Boolean: only an exact bool is accepted, no truthiness.
+        if type(operand) is not bool:
+            raise ExpressionTypeError(
+                f"'not' requires a bool, got {type(operand).__name__}",
+                node.position,
+            )
+        return not operand
+
     if not _is_number(operand):
         raise ExpressionTypeError(
             f"unary {_OPERATOR_SYMBOL[node.operator]!r} requires a number, "
@@ -198,14 +205,36 @@ def _eval_unary(node: UnaryExpr, variables: Mapping[str, object]) -> object:
 
 def _eval_binary(node: BinaryExpr, variables: Mapping[str, object]) -> object:
     operator = node.operator
+    if operator is TokenType.AND or operator is TokenType.OR:
+        # Strict Boolean operators with real short-circuit evaluation. The left
+        # operand is evaluated once and must be an exact bool; the right operand
+        # is evaluated (and validated) only when the result is not yet decided.
+        left = _eval(node.left, variables)
+        if type(left) is not bool:
+            raise ExpressionTypeError(
+                f"{_OPERATOR_SYMBOL[operator]!r} requires a bool, "
+                f"got {type(left).__name__}",
+                node.position,
+            )
+        if operator is TokenType.AND and not left:
+            return False
+        if operator is TokenType.OR and left:
+            return True
+        right = _eval(node.right, variables)
+        if type(right) is not bool:
+            raise ExpressionTypeError(
+                f"{_OPERATOR_SYMBOL[operator]!r} requires a bool, "
+                f"got {type(right).__name__}",
+                node.position,
+            )
+        return right
+
     if operator in _COMPARISON_OPERATORS:
         return _eval_comparison(node, variables)
     if operator not in _ARITHMETIC_OPERATORS:
-        # Boolean and/or remain unsupported in this stage; do not evaluate
-        # the operands.
+        # Defensive: the parser only produces the operators handled above.
         raise ExpressionEvaluationError(
-            f"the {_OPERATOR_SYMBOL[operator]!r} operator is not supported "
-            f"in this version",
+            f"cannot evaluate operator {_OPERATOR_SYMBOL[operator]!r}",
             node.position,
         )
 
