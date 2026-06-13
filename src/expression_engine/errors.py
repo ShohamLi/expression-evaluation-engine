@@ -117,6 +117,18 @@ class DivisionByZeroError(ExpressionEvaluationError):
 class UnknownFunctionError(ExpressionValidationError):
     """Raised when a call references a name that resolves to no function."""
 
+    def __init__(self, message: str, position: "Position | None" = None) -> None:
+        self.position = position
+        if position is not None:
+            message = f"{message} at line {position.line}, column {position.column}"
+        super().__init__(message)
+
 
 class FunctionArityError(ExpressionValidationError):
     """Raised when a function is called with the wrong number of arguments."""
+
+    def __init__(self, message: str, position: "Position | None" = None) -> None:
+        self.position = position
+        if position is not None:
+            message = f"{message} at line {position.line}, column {position.column}"
+        super().__init__(message)
