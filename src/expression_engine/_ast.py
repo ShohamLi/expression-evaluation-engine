@@ -34,6 +34,7 @@ __all__ = [
     "UnaryExpr",
     "BinaryExpr",
     "ConditionalExpr",
+    "LetExpr",
     "Expr",
 ]
 
@@ -132,5 +133,29 @@ class ConditionalExpr:
     position: Position
 
 
-Expr = LiteralExpr | VariableExpr | UnaryExpr | BinaryExpr | ConditionalExpr
+@dataclass(frozen=True, slots=True)
+class LetExpr:
+    """A local binding ``let name = value in body``.
+
+    Attributes:
+        name: The bound identifier.
+        value: The expression whose result is bound to ``name``.
+        body: The expression evaluated with the binding in scope.
+        position: Anchor position of the ``let`` keyword.
+    """
+
+    name: str
+    value: "Expr"
+    body: "Expr"
+    position: Position
+
+
+Expr = (
+    LiteralExpr
+    | VariableExpr
+    | UnaryExpr
+    | BinaryExpr
+    | ConditionalExpr
+    | LetExpr
+)
 """Any expression node. The parser returns one ``Expr`` per parse."""

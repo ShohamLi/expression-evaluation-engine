@@ -174,8 +174,9 @@ parentheses.
 
 ### AST design and immutability
 
-- Five node types: `LiteralExpr`, `VariableExpr`, `UnaryExpr`, `BinaryExpr`,
-  `ConditionalExpr`, with `Expr` as their union. No base class or visitor.
+- Node types: `LiteralExpr`, `VariableExpr`, `UnaryExpr`, `BinaryExpr`,
+  `ConditionalExpr`, and `LetExpr` (added in Stage 9), with `Expr` as their
+  union. No base class or visitor.
 - All nodes are `@dataclass(frozen=True, slots=True)`: immutable after
   construction, no per-instance `__dict__`, and structural equality.
 - Nodes reuse existing lexical types instead of duplicating them: operator and
@@ -397,6 +398,17 @@ added.
 - There is no implicit string conversion.
 - Mixed string and non-string operands raise `ExpressionTypeError`.
 - All other string operations remain unsupported.
+
+## Local bindings: syntax and AST (Stage 9)
+
+- Local binding syntax is `let name = value in body`.
+- `let` has the lowest precedence; a `let` used as an operand must be
+  parenthesized (`1 + (let x = 2 in x)`; `1 + let x = 2 in x` is a `ParserError`).
+- `LetExpr` is immutable (`frozen=True, slots=True`) and anchored at the `let`
+  token; `value` and `body` are full expressions, so nested `let` and
+  conditionals are allowed in both.
+- This stage adds syntax and AST only; evaluation and runtime scope are deferred
+  to Stage 10.
 
 ## AI-assisted decisions
 
