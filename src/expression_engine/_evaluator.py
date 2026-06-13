@@ -7,7 +7,8 @@ produces a runtime Python value. It implements:
 * literals (integer, float, string, boolean, ``null``, ``undefined``);
 * external variable lookup;
 * unary numeric ``+`` and ``-``;
-* binary numeric ``+``, ``-``, ``*``, and ``/`` (true division);
+* binary numeric ``+``, ``-``, ``*``, and ``/`` (true division), plus ``+``
+  concatenation of two exact strings (Stage 8);
 * comparisons ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=`` (Stage 5);
 * strict Boolean ``not``, ``and``, and ``or`` with real short-circuit
   evaluation (Stage 6);
@@ -243,6 +244,8 @@ def _eval_binary(node: BinaryExpr, variables: Mapping[str, object]) -> object:
     # Evaluate operands left-to-right, then validate types and compute.
     left = _eval(node.left, variables)
     right = _eval(node.right, variables)
+    if operator is TokenType.PLUS and type(left) is str and type(right) is str:
+        return left + right
     if not _is_number(left) or not _is_number(right):
         raise ExpressionTypeError(
             f"unsupported operand type(s) for {_OPERATOR_SYMBOL[operator]!r}: "

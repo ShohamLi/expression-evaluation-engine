@@ -391,6 +391,13 @@ added.
 - **Result returned unchanged:** the selected branch's value (any supported
   type, including `null` and `undefined`) is returned without coercion.
 
+## String concatenation (Stage 8)
+
+- `+` concatenates two exact built-in `str` operands and returns an exact `str`.
+- There is no implicit string conversion.
+- Mixed string and non-string operands raise `ExpressionTypeError`.
+- All other string operations remain unsupported.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and
