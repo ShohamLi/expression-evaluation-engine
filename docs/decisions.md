@@ -545,6 +545,30 @@ stages.
   compile-time binding details, per-evaluation closure representation, and
   edge-case tests.
 
+## Function validation and error normalization (Stage 17)
+
+- A complete audit confirmed that compile-time call validation already visits
+  every AST branch, call argument, local-function body, and nested local-function
+  body. Unknown names and invalid arities remain positioned validation errors.
+- Registered callable support is determined by the effective signature returned
+  by ``inspect.signature``. Bound methods, callable objects, and positional
+  ``functools.partial`` objects are accepted when that signature contains only
+  positional parameters with trailing defaults. A partial that creates a
+  keyword-only parameter is rejected by the same rule. Inspectable built-ins are
+  accepted; uninspectable built-in or extension callables are rejected. Signature
+  inspection occurs once during engine construction; evaluation performs neither
+  function-name lookup nor signature inspection.
+- The registered-call invocation itself is the only host-exception translation
+  boundary. An ``ExpressionError`` raised intentionally by host code propagates
+  unchanged. Every other ``Exception`` is wrapped in ``ExpressionEvaluationError``
+  at the expression call position with exception chaining. ``BaseException`` is
+  never caught, so ``KeyboardInterrupt``, ``SystemExit``, and ``GeneratorExit``
+  propagate.
+- Registered return validation remains limited to exact engine value types and
+  reports unsupported host values at the call position. Local expression
+  functions continue to use ordinary evaluator results without host-return
+  validation.
+
 ## AI-assisted decisions
 
 - All language decisions above were proposed as options by the AI assistant and

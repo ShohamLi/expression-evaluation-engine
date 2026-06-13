@@ -278,6 +278,12 @@ def test_unknown_call_in_unused_function_is_rejected() -> None:
         Engine().compile("let unused() = unknown() in 1")
 
 
+def test_unknown_call_in_nested_unused_function_body_is_rejected() -> None:
+    source = "let outer() = let inner() = unknown() in 1 in 1"
+    with pytest.raises(UnknownFunctionError):
+        Engine().compile(source)
+
+
 def test_invalid_local_arity_in_skipped_conditional_branch_is_rejected() -> None:
     source = "let unused(x) = x in 1 if true else unused()"
     with pytest.raises(FunctionArityError):

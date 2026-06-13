@@ -156,7 +156,12 @@ def test_unknown_function_during_compile() -> None:
         "unknown() + 1",
         "-unknown()",
         "unknown() == 1",
+        "unknown() and false",
         "false and unknown()",
+        "unknown() or false",
+        "true or unknown()",
+        "1 if unknown() else 2",
+        "unknown() if false else 1",
         "1 if true else unknown()",
         "abs(unknown())",
         "let x = unknown() in x",
@@ -171,6 +176,31 @@ def test_unknown_calls_are_validated_through_every_ast_shape(source: str) -> Non
 def test_arity_is_validated_in_branch_that_will_not_execute() -> None:
     with pytest.raises(FunctionArityError):
         Engine().compile("1 if true else sqrt()")
+
+
+@pytest.mark.parametrize("source", ["false and abs()", "true or abs()"])
+def test_arity_is_validated_in_short_circuited_boolean_branch(
+    source: str,
+) -> None:
+    with pytest.raises(FunctionArityError):
+        Engine().compile(source)
+
+
+@pytest.mark.parametrize(
+    ("source", "error_type"),
+    [
+        ("  missing()", UnknownFunctionError),
+        ("  abs()", FunctionArityError),
+    ],
+)
+def test_compile_time_function_errors_use_call_position(
+    source: str, error_type: type[Exception]
+) -> None:
+    with pytest.raises(error_type) as info:
+        Engine().compile(source)
+
+    assert info.value.position is not None
+    assert (info.value.position.line, info.value.position.column) == (1, 3)
 
 
 @pytest.mark.parametrize(

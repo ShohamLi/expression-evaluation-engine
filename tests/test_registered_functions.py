@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
@@ -54,6 +55,41 @@ def test_inspectable_builtin_callable_with_positional_only_parameter() -> None:
     assert engine.compile('length("abc")').evaluate() == 3
 
 
+def test_bound_method_signature_is_supported() -> None:
+    class Calculator:
+        def add(self, left: int, right: int = 1) -> int:
+            return left + right
+
+    engine = Engine(functions={"add": Calculator().add})
+    assert engine.compile("add(2)").evaluate() == 3
+    assert engine.compile("add(2, 3)").evaluate() == 5
+
+
+def test_callable_object_signature_is_supported() -> None:
+    class Add:
+        def __call__(self, left: int, right: int = 1) -> int:
+            return left + right
+
+    engine = Engine(functions={"add": Add()})
+    assert engine.compile("add(2)").evaluate() == 3
+
+
+def test_positional_partial_signature_is_supported() -> None:
+    def add(left: int, right: int) -> int:
+        return left + right
+
+    engine = Engine(functions={"add_one": functools.partial(add, 1)})
+    assert engine.compile("add_one(2)").evaluate() == 3
+
+
+def test_keyword_partial_is_rejected_when_it_creates_keyword_only_parameter() -> None:
+    def add(left: int, right: int) -> int:
+        return left + right
+
+    with pytest.raises(ExpressionValidationError, match="keyword-only"):
+        Engine(functions={"bad": functools.partial(add, right=1)})
+
+
 @pytest.mark.parametrize(
     "source",
     ["add(1)", "add(1, 2, 3)"],
@@ -62,6 +98,18 @@ def test_registered_arity_errors_during_compile(source: str) -> None:
     engine = Engine(functions={"add": lambda a, b: a + b})
     with pytest.raises(FunctionArityError):
         engine.compile(source)
+
+
+@pytest.mark.parametrize("source", ["  scale()", "  scale(1, 2, 3)"])
+def test_optional_registered_arity_bounds_are_validated_during_compile(
+    source: str,
+) -> None:
+    engine = Engine(functions={"scale": lambda value, factor=2: value * factor})
+    with pytest.raises(FunctionArityError) as info:
+        engine.compile(source)
+
+    assert info.value.position is not None
+    assert (info.value.position.line, info.value.position.column) == (1, 3)
 
 
 def test_unknown_registered_function_during_compile() -> None:
@@ -196,6 +244,15 @@ def test_unsupported_return_value_is_rejected(value: object) -> None:
         engine.compile("bad()").evaluate()
 
 
+def test_unsupported_return_value_error_uses_call_position() -> None:
+    engine = Engine(functions={"bad": object})
+    with pytest.raises(ExpressionTypeError) as info:
+        engine.compile("  bad()").evaluate()
+
+    assert info.value.position is not None
+    assert (info.value.position.line, info.value.position.column) == (1, 3)
+
+
 def test_registered_functions_receive_null_and_undefined_without_coercion() -> None:
     engine = Engine(functions={"identity": lambda value: value})
     assert engine.compile("identity(null)").evaluate() is None
@@ -227,16 +284,20 @@ def test_existing_engine_error_propagates_from_callable() -> None:
     assert info.value is error
 
 
-def test_base_exception_from_callable_is_not_wrapped() -> None:
-    class StopEvaluation(BaseException):
-        pass
+@pytest.mark.parametrize("error_type", [KeyboardInterrupt, SystemExit, GeneratorExit])
+def test_base_exception_from_callable_is_not_wrapped(
+    error_type: type[BaseException],
+) -> None:
+    error = error_type("stop")
 
     def stop() -> int:
-        raise StopEvaluation("stop")
+        raise error
 
     engine = Engine(functions={"stop": stop})
-    with pytest.raises(StopEvaluation, match="stop"):
+    with pytest.raises(error_type, match="stop") as info:
         engine.compile("stop()").evaluate()
+
+    assert info.value is error
 
 
 def test_registered_arguments_are_evaluated_left_to_right_exactly_once() -> None:
