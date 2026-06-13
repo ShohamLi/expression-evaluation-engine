@@ -126,7 +126,16 @@ the chosen behavior and, where relevant, what was deliberately excluded.
 - The hot evaluation path does not tokenize, parse, or rebuild the tree.
 - No compilation cache is implemented in v1; a bounded, thread-safe cache is a
   possible later stage once correctness and benchmarks justify it.
-- No throughput numbers are claimed without a reproducible benchmark.
+- The standard-library benchmark is run with
+  `PYTHONPATH=src python benchmarks/benchmark_engine.py`. It measures compilation
+  and evaluation separately, warms up each workload, records multiple samples,
+  and reports the median duration, time per operation, and operations per second.
+- Evaluation workloads reuse compiled expressions and stable variable mappings;
+  engine construction, compilation, function registration, and registered-callable
+  signature inspection are outside their timed regions.
+- Benchmark results are machine-, interpreter-, and load-specific measurements,
+  not universal performance guarantees. Stage 19 adds no cache or production
+  optimization.
 
 ## Parser and AST (Stage 3)
 
