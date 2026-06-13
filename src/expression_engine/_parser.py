@@ -14,6 +14,8 @@ position attached.
 
 Grammar and precedence (lowest binding first; one method per level):
 
+    expression     := "let" IDENTIFIER "=" expression "in" expression
+                    | conditional                                    lowest binding
     conditional    := or_expr ( "if" or_expr "else" conditional )?   right-assoc
     or_expr        := and_expr ( "or" and_expr )*                    left-assoc
     and_expr       := comparison ( "and" comparison )*               left-assoc
@@ -21,12 +23,17 @@ Grammar and precedence (lowest binding first; one method per level):
     additive       := multiplicative ( ("+"|"-") multiplicative )*   left-assoc
     multiplicative := unary ( ("*"|"/") unary )*                     left-assoc
     unary          := ("not"|"+"|"-") unary | primary                repeatable
-    primary        := literal | identifier | "(" conditional ")"
+    primary        := literal | identifier | "(" expression ")"
 
 Left-associative levels are written as iterative loops; recursion is used only
 where it is the natural shape of the grammar: nested parentheses, repeated
 unary operators, and the right-associative conditional. Comparisons do not
 chain: ``a < b < c`` is rejected. Parentheses only group; they produce no node.
+
+``let`` binds loosest: it is only valid where a full expression begins (the
+top level or inside parentheses). ``1 + let x = 2 in x`` is therefore a
+``ParserError``; parenthesize as ``1 + (let x = 2 in x)``. The ``in`` token
+naturally terminates the bound value because no lower grammar level consumes it.
 """
 
 from __future__ import annotations
@@ -38,6 +45,7 @@ from ._ast import (
     BinaryExpr,
     ConditionalExpr,
     Expr,
+    LetExpr,
     LiteralExpr,
     UnaryExpr,
     VariableExpr,
@@ -97,7 +105,7 @@ class _Parser:
 
     def parse(self) -> Expr:
         """Parse exactly one complete expression, then require ``EOF``."""
-        expression = self._conditional()
+        expression = self._expression()
         trailing = self._current()
         if trailing.type is not TokenType.EOF:
             raise ParserError(
@@ -106,6 +114,23 @@ class _Parser:
                 trailing.position,
             )
         return expression
+
+    def _expression(self) -> Expr:
+        # `let` is the lowest-precedence form; otherwise fall through to the
+        # conditional level. A `let` is therefore only valid where a full
+        # expression begins (the top level or inside parentheses).
+        if self._current().type is TokenType.LET:
+            return self._let()
+        return self._conditional()
+
+    def _let(self) -> Expr:
+        let_token = self._advance()
+        name = self._expect(TokenType.IDENTIFIER, "an identifier")
+        self._expect(TokenType.ASSIGN, "'='")
+        value = self._expression()
+        self._expect(TokenType.IN, "'in'")
+        body = self._expression()
+        return LetExpr(name.value, value, body, let_token.position)
 
     def _conditional(self) -> Expr:
         # value_if_true if condition else value_if_false
@@ -198,7 +223,7 @@ class _Parser:
             return VariableExpr(token.value, token.position)
         if token.type is TokenType.LPAREN:
             self._advance()
-            grouped = self._conditional()
+            grouped = self._expression()
             self._expect(TokenType.RPAREN, "')'")
             return grouped
         raise self._unexpected(token, "an expression")
