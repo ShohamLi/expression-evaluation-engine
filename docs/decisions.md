@@ -104,10 +104,9 @@ excluded.
     invalid domains raise a stable engine error.
   - `round(x)` and `round(x, ndigits)`: `x` numeric non-boolean, `ndigits`
     integer non-boolean; documented half-to-even rounding.
-  - `min` / `max`: two or more exact built-in numeric arguments (`int` or
-    `float`, excluding `bool`; no iterables in v1). Arbitrary mutually
-    comparable values and strings are not accepted; fewer than two arguments
-    is an arity error.
+  - `min` / `max`: two or more positional arguments (no iterables in v1);
+    arguments must be mutually comparable; fewer than two arguments is an
+    arity error.
 - Unknown functions, argument counts, argument types, returned values, and
   exceptions raised by user functions are validated/wrapped into engine errors.
 
@@ -197,8 +196,8 @@ parentheses.
 - `LiteralExpr.value` stores the tokenizer-provided `Token.value` verbatim as a
   `str` (decoded text for strings, source text for numbers, keyword spelling for
   `true`/`false`/`null`/`undefined`). No conversion to `int`/`float`/`bool`/
-  `None`/`UNDEFINED` happens during tokenization, parsing, or AST construction.
-  Conversion to runtime values occurs during evaluation.
+  `None`/`UNDEFINED` happens during evaluation, consistent with the tokenizer's
+  documented deferral of numeric conversion.
 
 ### Source-position policy (anchor only)
 
@@ -238,13 +237,6 @@ parentheses.
   the relevant source position. Empty input has no dedicated message; it yields
   the standard "expected an expression but reached end of input".
 
-### Expression depth limitation
-
-- The parser and evaluator use Python recursion for naturally nested expression
-  shapes. Extremely deeply nested expressions may therefore reach Python's
-  recursion limit. Explicit depth limiting is future production hardening;
-  ordinary expression depths are supported without special configuration.
-
 ## Evaluator
 
 The evaluator module (`_evaluator.py`) walks the immutable AST and returns a
@@ -253,8 +245,7 @@ bindings, and resolved function calls without storing shared evaluation state.
 
 ### Interface
 
-- `evaluate(node: Expr, variables: Mapping[str, object] | None = None,
-  function_bindings: FunctionBindings | None = None) -> object`
+- `evaluate(node: Expr, variables: Mapping[str, object] | None = None) -> object`
   is **internal** (not exported from the package root), mirroring `tokenize` and
   `parse`. `None` means an empty variable mapping. The evaluator never
   re-tokenizes or re-parses, holds no global state, and never mutates the AST,
@@ -374,10 +365,9 @@ short-circuit behavior.
 - **Left-to-right, real short-circuit:** the left operand is evaluated first and
   exactly once. `and` returns `False` immediately when the left operand is
   `False`; `or` returns `True` immediately when the left operand is `True`. The
-  right operand is not evaluated at runtime when short-circuited, so runtime
-  errors inside it do not occur. It is still statically validated during
-  compilation, including function names, recursion restrictions, and arities.
-  When the right operand is required, its evaluation errors propagate normally.
+  right operand (and its validation) is skipped entirely when short-circuited,
+  so errors inside a skipped operand never occur; when the right operand is
+  required, its evaluation errors propagate normally.
 - **null / undefined:** never converted to `False`.
 
 ## Conditional expressions
@@ -391,8 +381,7 @@ The evaluator handles `value_if_true if condition else value_if_false`.
 - **Condition evaluated once.**
 - **Selected branch only:** when the condition is `True` only `value_if_true` is
   evaluated; when `False` only `value_if_false` is evaluated. The unselected
-  branch is not evaluated at runtime. It is still statically validated during
-  compilation, including function names, recursion restrictions, and arities.
+  branch is never evaluated or validated.
 - **Result returned unchanged:** the selected branch's value (any supported
   type, including `null` and `undefined`) is returned without coercion.
 
